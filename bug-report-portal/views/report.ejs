@@ -322,7 +322,7 @@
 
       <!-- Sidebar -->
       <div class="incident-sidebar">
-        <!-- Status Dropdown -->
+        <!-- Status & Assignment Dropdowns (merged) -->
         <div class="sidebar-section">
           <div class="sidebar-title">Status</div>
           <select id="status-select" class="status-select" onchange="changeStatus()">
@@ -333,17 +333,13 @@
                 currentStatusDisplay = 'Done';
               }
             %>
-            <option value="<%= currentStatus %>" selected><%= currentStatusDisplay %></option>
-            <option value="OPEN">Open</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="ON_HOLD">On Hold</option>
-            <option value="RESOLVED">Done</option>
+            <option value="IN_PROGRESS" <% if(currentStatus==='IN_PROGRESS'){%>selected<%}%>>In Progress</option>
+            <option value="ON_HOLD" <% if(currentStatus==='ON_HOLD'){%>selected<%}%>>On Hold</option>
+            <option value="RESOLVED" <% if(currentStatus==='RESOLVED'||currentStatus==='CLOSED'){%>selected<%}%>>Done</option>
           </select>
         </div>
-
-        <!-- Assign To Dropdown -->
         <div class="sidebar-section">
-          <div class="sidebar-title">Assign To</div>
+          <div class="sidebar-title">Assign</div>
           <select id="assignee-select" class="assign-select" onchange="assignTo()">
             <option value="">— Unassigned —</option>
             <option value="<%= currentUser %>" <% if (report.assignee === currentUser) { %>selected<% } %>><%= currentUser %></option>
@@ -351,18 +347,6 @@
             <option value="dev-team" <% if (report.assignee === 'dev-team') { %>selected<% } %>>Dev Team</option>
             <option value="qa-team" <% if (report.assignee === 'qa-team') { %>selected<% } %>>QA Team</option>
           </select>
-        </div>
-
-        <!-- Current Assignee -->
-        <div class="sidebar-section">
-          <div class="sidebar-title">Currently Assigned</div>
-          <div class="current-assignee">
-            <% if (report.assignee) { %>
-              <strong><%= report.assignee %></strong>
-            <% } else { %>
-              <em>Unassigned</em>
-            <% } %>
-          </div>
         </div>
       </div>
     </div>

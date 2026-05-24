@@ -93,11 +93,11 @@
           </div>
           <div class="kpi-card" onclick="window.location='/incidents?status=done'">
             <div class="kpi-label">Done</div>
-            <div class="kpi-value"><%= (kpiResolved || 0) + (kpiClosed || 0) %></div>
+            <div class="kpi-value"><%= kpiDone || 0 %></div>
           </div>
           <div class="kpi-card" onclick="window.location='/incidents'">
             <div class="kpi-label">Total Incidents</div>
-            <div class="kpi-value"><%= (kpiOpen || 0) + (kpiInProgress || 0) + (kpiResolved || 0) + (kpiClosed || 0) %></div>
+            <div class="kpi-value"><%= (kpiOpen || 0) + (kpiInProgress || 0) + (kpiDone || 0) %></div>
           </div>
         </div>
         
@@ -123,7 +123,7 @@
             data: {
               labels: ['Open', 'In Progress', 'Done'],
               datasets: [{
-                data: [<%= kpiOpen %>, <%= kpiInProgress || 0 %>, <%= (kpiResolved || 0) + (kpiClosed || 0) %>],
+                data: [<%= kpiOpen %>, <%= kpiInProgress || 0 %>, <%= kpiDone || 0 %>],
                 backgroundColor: ['#ffc107', '#0275d8', '#28a745'],
                 borderColor: '#fff',
                 borderWidth: 2
@@ -137,44 +137,24 @@
               }
             }
           });
-          
-          statusChart.canvas.addEventListener('click', function(e) {
-            const canvasPosition = Chart.helpers.getRelativePosition(e, statusChart);
-            const dataX = statusChart.scales.x;
-            const dataY = statusChart.scales.y;
-            const canvasX = statusChart.canvas.offsetWidth / 2;
-            const canvasY = statusChart.canvas.offsetHeight / 2;
-            const distances = statusChart.data.datasets[0].data.map((datapoint, index) => {
-              const element = statusChart.getDatasetMeta(0).data[index];
-              return Math.sqrt(Math.pow(element.x - canvasPosition.x * statusChart.canvas.width, 2) + Math.pow(element.y - canvasPosition.y * statusChart.canvas.height, 2));
-            });
-            const nearestIndex = distances.indexOf(Math.min(...distances));
-            const statuses = ['open', 'in_progress', 'done'];
-            window.location = '/incidents?status=' + statuses[nearestIndex];
-          });
+          // Pie chart click navigation
+          statusChart.canvas.onclick = function(evt) {
+            const points = statusChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+            if (points.length) {
+              const idx = points[0].index;
+              const statuses = ['open', 'in_progress', 'done'];
+              window.location = '/incidents?status=' + statuses[idx];
+            }
+          };
           
           // Assignment Chart
-          const allReports = [];
-          let assignedCount = 0;
-          let unassignedCount = 0;
-          
-          // Calculate from reports data (backend should pass this)
-          // For now, we'll use a simple calculation
-          const openReports = <%= kpiOpen %>;
-          const inProgressReports = <%= kpiInProgress || 0 %>;
-          const doneReports = <%= (kpiResolved || 0) + (kpiClosed || 0) %>;
-          
-          // Placeholder - in real implementation, backend calculates this
-          assignedCount = Math.floor((openReports + inProgressReports + doneReports) * 0.6);
-          unassignedCount = (openReports + inProgressReports + doneReports) - assignedCount;
-          
           const assignmentCtx = document.getElementById('assignmentChart').getContext('2d');
           const assignmentChart = new Chart(assignmentCtx, {
             type: 'doughnut',
             data: {
               labels: ['Assigned', 'Unassigned'],
               datasets: [{
-                data: [assignedCount, unassignedCount],
+                data: [<%= assignedCount %>, <%= unassignedCount %>],
                 backgroundColor: ['#16a34a', '#f59e0b'],
                 borderColor: '#fff',
                 borderWidth: 2
@@ -188,20 +168,18 @@
               }
             }
           });
-          
-          assignmentChart.canvas.addEventListener('click', function(e) {
-            const canvasPosition = Chart.helpers.getRelativePosition(e, assignmentChart);
-            const distances = assignmentChart.data.datasets[0].data.map((datapoint, index) => {
-              const element = assignmentChart.getDatasetMeta(0).data[index];
-              return Math.sqrt(Math.pow(element.x - canvasPosition.x * assignmentChart.canvas.width, 2) + Math.pow(element.y - canvasPosition.y * assignmentChart.canvas.height, 2));
-            });
-            const nearestIndex = distances.indexOf(Math.min(...distances));
-            if (nearestIndex === 0) {
-              window.location = '/incidents';
-            } else {
-              window.location = '/incidents';
+          // Pie chart click navigation for assignment
+          assignmentChart.canvas.onclick = function(evt) {
+            const points = assignmentChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+            if (points.length) {
+              const idx = points[0].index;
+              if (idx === 0) {
+                window.location = '/incidents?filter=assigned';
+              } else {
+                window.location = '/incidents?filter=unassigned';
+              }
             }
-          });
+          };
         </script>
       </div>
     </div>

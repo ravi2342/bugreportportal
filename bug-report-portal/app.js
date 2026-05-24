@@ -115,19 +115,22 @@ app.get('/dashboard', async (req, res) => {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const kpiOpen = reports.filter(r => r.status === 'OPEN').length;
   const kpiInProgress = reports.filter(r => r.status === 'IN_PROGRESS').length;
-  const kpiResolved = reports.filter(r => r.status === 'RESOLVED').length;
-  const kpiClosed = reports.filter(r => r.status === 'CLOSED').length;
-  const kpiResolvedToday = reports.filter(r => r.status === 'RESOLVED' && r.resolvedAt && new Date(r.resolvedAt) >= today).length;
+  const kpiDone = reports.filter(r => r.status === 'RESOLVED' || r.status === 'CLOSED').length;
+  const kpiResolvedToday = reports.filter(r => (r.status === 'RESOLVED' || r.status === 'CLOSED') && r.resolvedAt && new Date(r.resolvedAt) >= today).length;
   const kpiCritical = reports.filter(r => r.priority === 'Critical' && (r.status === 'OPEN' || r.status === 'ASSIGNED' || r.status === 'IN_PROGRESS')).length;
+  // Assigned/unassigned
+  const assignedCount = reports.filter(r => r.assignee && r.assignee.trim() !== '').length;
+  const unassignedCount = reports.length - assignedCount;
   res.render('dashboard', {
     appName: app.locals.appName,
     currentUser,
     kpiOpen,
     kpiInProgress,
-    kpiResolved,
-    kpiClosed,
+    kpiDone,
     kpiResolvedToday,
-    kpiCritical
+    kpiCritical,
+    assignedCount,
+    unassignedCount
   });
 });
 
@@ -149,11 +152,17 @@ app.get('/incidents', async (req, res) => {
   }
   let filteredReports = reports;
   if (filter === 'myIncidents' && currentUser && currentUser !== 'guest') {
-    filteredReports = reports.filter(r => r.assignee === currentUser);
+    filteredReports = reports.filter(r => r.reporter === currentUser);
+  } else if (filter === 'assigned') {
+    filteredReports = reports.filter(r => r.assignee && r.assignee.trim() !== '');
+  } else if (filter === 'unassigned') {
+    filteredReports = reports.filter(r => !r.assignee || r.assignee.trim() === '');
   }
   if (status) {
     if (status.toLowerCase() === 'open') {
       filteredReports = reports.filter(r => ['OPEN', 'ASSIGNED', 'IN_PROGRESS'].includes((r.status || 'OPEN').toUpperCase()));
+    } else if (status.toLowerCase() === 'done') {
+      filteredReports = reports.filter(r => ['RESOLVED', 'CLOSED'].includes((r.status || '').toUpperCase()));
     } else {
       filteredReports = filteredReports.filter(r => r.status && r.status.toLowerCase() === status.toLowerCase());
     }
