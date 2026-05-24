@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bug Report <%= report.id %></title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .status-badge { display: inline-block; padding: 6px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; margin-right: 12px; }
+    .status-OPEN { background: #ffc107; color: #000; }
+    .status-ASSIGNED { background: #17a2b8; color: white; }
+    .status-IN_PROGRESS { background: #0275d8; color: white; }
+    .status-RESOLVED { background: #28a745; color: white; }
+    .status-CLOSED { background: #6c757d; color: white; }
+    .actions { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 4px; }
+    .actions button, .actions select { padding: 8px 12px; margin-right: 8px; }
+    .assignee-info { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/">← Back to all reports</a>
+    <h1>#<%= report.id %> — <%= report.title %></h1>
+    
+    <div style="margin: 15px 0;">
+      <span class="status-badge status-<%= (report.status || 'OPEN').replace(/\s+/g, '_') %>"><%= report.status || 'OPEN' %></span>
+      <div class="assignee-info">
+        <strong>Assignee:</strong> 
+        <% if (report.assignee) { %>
+          <%= report.assignee %>
+        <% } else { %>
+          <em>Unassigned</em>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="actions">
+      <h3>Actions</h3>
+      <button onclick="changeStatus('IN_PROGRESS')">Start Work</button>
+      <button onclick="changeStatus('ON_HOLD')">On Hold</button>
+      <button onclick="changeStatus('RESOLVED')">Mark Resolved</button>
+      <button onclick="changeStatus('CLOSED')">Close</button>
+      <br><br>
+      <label for="assignee-select">Assign to:</label>
+      <select id="assignee-select" onchange="assignTo()">
+        <option value="">-- Unassigned --</option>
+        <option value="<%= currentUser %>"><%= currentUser %></option>
+        <option value="support-team">Support Team</option>
+        <option value="dev-team">Dev Team</option>
+        <option value="qa-team">QA Team</option>
+      </select>
+    </div>
+
+    <p><strong>Reporter:</strong> <%= report.reporter %></p>
+    <p><strong>Priority:</strong> <span class="priority"><%= report.priority %></span></p>
+    <p><strong>Created:</strong> <%= new Date(report.createdAt).toLocaleString() %></p>
+    <% if (report.updatedAt) { %><p><strong>Updated:</strong> <%= new Date(report.updatedAt).toLocaleString() %></p><% } %>
+    
+    <h3>Description</h3>
+    <p><%= report.description %></p>
+
+    <% if (report.screenshot) { %>
+      <h3>Screenshot</h3>
+      <img src="<%= report.screenshot %>" alt="Bug screenshot" style="max-width:100%;height:auto;" onerror="this.src='/placeholder.png'" />
+    <% } %>
+  </div>
+
+  <script>
+    function changeStatus(status) {
+      fetch('/report/<%= report.id %>/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      }).then(r => r.json()).then(d => {
+        if (d.success) {
+          alert('Status updated!');
+          location.reload();
+        } else {
+          alert('Error: ' + (d.error || 'Unknown'));
+        }
+      }).catch(e => alert('Error: ' + e.message));
+    }
+
+    function assignTo() {
+      const select = document.getElementById('assignee-select');
+      const assignee = select.value;
+      fetch('/report/<%= report.id %>/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignee })
+      }).then(r => r.json()).then(d => {
+        if (d.success) {
+          alert('Assigned!');
+          location.reload();
+        } else {
+          alert('Error: ' + (d.error || 'Unknown'));
+        }
+      }).catch(e => alert('Error: ' + e.message));
+    }
+  </script>
+</body>
+</html>

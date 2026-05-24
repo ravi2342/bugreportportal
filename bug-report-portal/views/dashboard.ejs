@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= appName %> - Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="layout" style="display:flex;min-height:100vh;">
+    <%- include('sidebar', { appName, current: 'dashboard' }) %>
+    <div class="main-content" style="flex:1;display:flex;flex-direction:column;min-height:100vh;background:#f5f7fb;">
+      <div class="navbar" style="background:#fff;padding:18px 32px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:space-between;">
+        <span class="app-title">Incident & Service Operations Dashboard</span>
+        <div style="display:flex;align-items:center;gap:18px;">
+          <form action="/search" method="get" style="display:inline-flex;align-items:center;gap:4px;">
+            <input type="text" name="q" placeholder="Search ticket #" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:120px;font-size:1em;" />
+            <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;">Search</button>
+          </form>
+          <span style="color:#64748b;font-size:1em;">Welcome<% if (currentUser && currentUser !== 'guest') { %>, <%= currentUser %><% } %></span>
+        </div>
+      </div>
+      <div style="padding: 32px;">
+        <div class="dashboard-kpis" style="display:flex;gap:24px;margin:32px 0 24px 0;">
+          <div class="kpi-card">
+            <div class="kpi-label">Open Incidents</div>
+            <div class="kpi-value"><%= kpiOpen || 0 %></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Resolved Today</div>
+            <div class="kpi-value"><%= kpiResolvedToday || 0 %></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Critical Issues</div>
+            <div class="kpi-value"><%= kpiCritical || 0 %></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Active Services</div>
+            <div class="kpi-value">4</div>
+          </div>
+        </div>
+        <div style="margin-top:40px;max-width:480px;">
+          <canvas id="incidentChart"></canvas>
+        </div>
+        <script>
+          const ctx = document.getElementById('incidentChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: ['Open', 'In Progress', 'Resolved', 'Closed'],
+              datasets: [{
+                data: [<%= kpiOpen %>, <%= kpiInProgress || 0 %>, <%= kpiResolved || 0 %>, <%= kpiClosed || 0 %>],
+                backgroundColor: ['#ffc107', '#0275d8', '#28a745', '#6c757d']
+              }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+          });
+        </script>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

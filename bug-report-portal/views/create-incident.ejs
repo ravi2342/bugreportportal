@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= appName %> - Create Incident</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="layout" style="display:flex;min-height:100vh;">
+    <%- include('sidebar', { appName, current: 'incidents-create' }) %>
+    <div class="main-content" style="flex:1;display:flex;flex-direction:column;min-height:100vh;background:#f5f7fb;">
+      <div class="navbar" style="background:#fff;padding:18px 32px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:space-between;">
+        <span class="app-title">Create Incident</span>
+        <span style="color:#64748b;font-size:1em;">Welcome<% if (currentUser && currentUser !== 'guest') { %>, <%= currentUser %><% } %></span>
+      </div>
+      <div style="padding: 32px;max-width:520px;margin:auto;">
+        <form action="/report" method="POST" enctype="multipart/form-data" class="report-form">
+          <input type="text" name="title" placeholder="Incident title" required />
+          <select name="priority" required>
+            <option value="">Select priority</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
+          <textarea name="description" placeholder="Describe the issue" rows="5" required></textarea>
+          <input type="file" name="screenshot" />
+          <label style="display:block;margin-top:8px;">Assign to:
+            <select name="assignee">
+              <option value="">-- Unassigned --</option>
+              <% if (currentUser && currentUser !== 'guest') { %>
+                <option value="<%= currentUser %>" selected>Assign to me</option>
+              <% } %>
+              <option value="support-team">Support Team</option>
+              <option value="dev-team">Dev Team</option>
+              <option value="qa-team">QA Team</option>
+            </select>
+          </label>
+          <button type="submit">Submit Incident</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

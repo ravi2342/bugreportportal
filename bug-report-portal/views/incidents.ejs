@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= appName %> - Incidents</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="layout" style="display:flex;min-height:100vh;">
+    <%- include('sidebar', { appName, current: 'incidents' + (status ? '-' + status : '') }) %>
+    <div class="main-content" style="flex:1;display:flex;flex-direction:column;min-height:100vh;background:#f5f7fb;">
+      <div class="navbar">
+        <span class="app-title">Incidents</span>
+        <div style="display:flex;align-items:center;gap:18px;">
+          <form action="/search" method="get" style="display:inline-flex;align-items:center;gap:4px;">
+            <input type="text" name="q" placeholder="Search ticket #" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:120px;font-size:1em;" />
+            <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;">Search</button>
+          </form>
+          <span style="color:#64748b;font-size:1em;">Welcome<% if (currentUser && currentUser !== 'guest') { %>, <%= currentUser %><% } %></span>
+        </div>
+      </div>
+      <div style="padding: 32px;">
+        <h2>
+          <% if (status) { %>
+            <%= status.replace('_',' ').toUpperCase() %> Incidents
+          <% } else { %>
+            All Incidents
+          <% } %>
+        </h2>
+        <% if (reports.length === 0) { %>
+          <div style="color:#64748b;margin-bottom:24px;">No incidents found for this filter.</div>
+        <% } %>
+        <% reports.forEach(function(report) { %>
+          <div class="card" onclick="window.location='/report/<%= report.id %>'" style="cursor:pointer;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <% if (report.status) { %>
+                  <span class="status-badge status-<%= report.status %>"><%= report.status.replace('_',' ') %></span>
+                <% } else { %>
+                  <span class="status-badge status-OPEN">OPEN</span>
+                <% } %>
+                <b>#<%= report.id %> — <%= report.title %></b>
+              </div>
+              <span style="color:#64748b;font-size:0.95em;">Reporter: <%= report.reporter %></span>
+            </div>
+            <div style="margin:8px 0 4px 0;">
+              <b>Priority:</b> <%= report.priority %>
+            </div>
+            <div><%= report.description %></div>
+            <% if (report.screenshot) { %>
+              <div style="margin-top:8px;">
+                <b>Bug screenshot</b><br/>
+                <img src="/uploads/<%= report.screenshot %>" alt="screenshot" style="max-width:220px;max-height:120px;" onerror="this.src='/public/placeholder.png'" />
+              </div>
+            <% } %>
+            <div style="margin-top:8px;color:#64748b;font-size:0.95em;">
+              <%= new Date(report.createdAt).toLocaleString() %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
