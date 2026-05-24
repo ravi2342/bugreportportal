@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Incident #<%= report.id %></title>
+  <title>Incident <%= report.id %></title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -79,9 +79,7 @@
       margin-bottom: 28px;
     }
     
-    .section:last-child {
-      margin-bottom: 0;
-    }
+    .section:last-child { margin-bottom: 0; }
     
     .section-title {
       font-size: 12px;
@@ -94,10 +92,7 @@
       border-bottom: 1px solid #e2e8f0;
     }
     
-    .title-section {
-      margin-bottom: 24px;
-    }
-    
+    .title-section { margin-bottom: 24px; }
     .title-section .incident-title {
       font-size: 18px;
       font-weight: 600;
@@ -174,9 +169,7 @@
       margin-bottom: 24px;
     }
     
-    .sidebar-section:last-child {
-      margin-bottom: 0;
-    }
+    .sidebar-section:last-child { margin-bottom: 0; }
     
     .sidebar-title {
       font-size: 12px;
@@ -189,34 +182,25 @@
       border-bottom: 1px solid #e2e8f0;
     }
     
-    .action-button {
-      display: block;
+    .status-select {
       width: 100%;
-      padding: 10px 12px;
-      margin-bottom: 8px;
+      padding: 10px;
       border: 1px solid #e2e8f0;
-      background: white;
-      color: #1e293b;
       border-radius: 6px;
       font-size: 13px;
-      font-weight: 500;
+      background: white;
       cursor: pointer;
-      transition: all 0.2s;
+      font-weight: 500;
     }
     
-    .action-button:hover {
-      background: #f8fafc;
+    .status-select:hover {
       border-color: #cbd5e1;
     }
     
-    .action-button.primary {
-      background: #0f766e;
-      color: white;
+    .status-select:focus {
+      outline: none;
       border-color: #0f766e;
-    }
-    
-    .action-button.primary:hover {
-      background: #0d5d5a;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
     }
     
     .assign-select {
@@ -233,6 +217,12 @@
       border-color: #cbd5e1;
     }
     
+    .assign-select:focus {
+      outline: none;
+      border-color: #0f766e;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+    }
+    
     .current-assignee {
       background: #f0fdf4;
       padding: 12px;
@@ -241,25 +231,13 @@
       font-size: 13px;
     }
     
-    .current-assignee strong {
-      color: #15803d;
-    }
-    
-    .current-assignee em {
-      color: #94a3b8;
-    }
+    .current-assignee strong { color: #15803d; }
+    .current-assignee em { color: #94a3b8; }
     
     @media (max-width: 768px) {
-      .incident-content {
-        grid-template-columns: 1fr;
-      }
-      .field-group {
-        grid-template-columns: 1fr;
-      }
-      .incident-sidebar {
-        position: relative;
-        top: 0;
-      }
+      .incident-content { grid-template-columns: 1fr; }
+      .field-group { grid-template-columns: 1fr; }
+      .incident-sidebar { position: relative; top: 0; }
     }
   </style>
 </head>
@@ -268,7 +246,7 @@
     <div class="incident-header">
       <div class="incident-header-left">
         <a href="/incidents" class="back-link">← Back to Incidents</a>
-        <h1>Incident #<%= report.id %></h1>
+        <h1>Incident <%= report.id %></h1>
       </div>
       <span class="status-badge status-<%= (report.status || 'OPEN').replace(/\s+/g, '_') %>">
         <%= (report.status || 'OPEN').replace(/_/g, ' ') %>
@@ -342,17 +320,21 @@
 
       <!-- Sidebar -->
       <div class="incident-sidebar">
-        <!-- Status Actions -->
+        <!-- Status Dropdown -->
         <div class="sidebar-section">
-          <div class="sidebar-title">Actions</div>
-          <button class="action-button" onclick="changeStatus('ASSIGNED')">Assign</button>
-          <button class="action-button" onclick="changeStatus('IN_PROGRESS')">Start Work</button>
-          <button class="action-button" onclick="changeStatus('ON_HOLD')">On Hold</button>
-          <button class="action-button primary" onclick="changeStatus('RESOLVED')">Mark Resolved</button>
-          <button class="action-button" onclick="changeStatus('CLOSED')">Close</button>
+          <div class="sidebar-title">Change Status</div>
+          <select id="status-select" class="status-select" onchange="changeStatus()">
+            <option value="<%= report.status || 'OPEN' %>" selected><%= (report.status || 'OPEN').replace(/_/g, ' ') %></option>
+            <option value="OPEN">Open</option>
+            <option value="ASSIGNED">Assigned</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="ON_HOLD">On Hold</option>
+            <option value="RESOLVED">Resolved</option>
+            <option value="CLOSED">Closed</option>
+          </select>
         </div>
 
-        <!-- Assign To -->
+        <!-- Assign To Dropdown -->
         <div class="sidebar-section">
           <div class="sidebar-title">Assign To</div>
           <select id="assignee-select" class="assign-select" onchange="assignTo()">
@@ -380,7 +362,11 @@
   </div>
 
   <script>
-    function changeStatus(status) {
+    function changeStatus() {
+      const select = document.getElementById('status-select');
+      const status = select.value;
+      if (!status) return;
+      
       fetch('/report/<%= report.id %>/status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -391,15 +377,18 @@
           location.reload();
         } else {
           alert('❌ Error: ' + (d.error || 'Failed to update status'));
+          select.value = '<%= report.status || "OPEN" %>';
         }
       }).catch(e => {
         alert('❌ Error: ' + e.message);
+        select.value = '<%= report.status || "OPEN" %>';
       });
     }
 
     function assignTo() {
       const select = document.getElementById('assignee-select');
       const assignee = select.value;
+      
       fetch('/report/<%= report.id %>/assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
