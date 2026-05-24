@@ -1,0 +1,133 @@
+# Bug Report Portal - Setup Guide for macOS M1
+
+## Prerequisites
+- PostgreSQL installed via Homebrew
+- Node.js and npm installed
+- This repository cloned
+
+## Quick Start
+
+### 1. Start PostgreSQL
+```bash
+# Check PostgreSQL status
+brew services list
+
+# Start PostgreSQL if not running
+brew services start postgresql@15
+```
+
+### 2. Create Database
+```bash
+# Open PostgreSQL CLI
+psql -U postgres
+
+# Create the database
+CREATE DATABASE bugreportportal;
+
+# Verify
+\l
+
+# Exit
+\q
+```
+
+### 3. Setup Node Project
+```bash
+cd bug-report-portal
+
+# Install dependencies
+npm install
+
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations to create tables
+npx prisma migrate dev --name init
+```
+
+### 4. Start the Application
+```bash
+# Development mode with auto-reload
+npm run dev
+
+# Or production mode
+npm start
+```
+
+The app will start on **http://localhost:3000**
+
+## Testing the Application
+
+### Create a New Incident
+1. Navigate to http://localhost:3000
+2. Go to **Incidents** → **Create Incident**
+3. Fill in:
+   - Title: "Test Bug"
+   - Priority: "High"
+   - Description: "Test description"
+4. Click **Submit Incident**
+
+### View in Database
+```bash
+psql -U postgres -d bugreportportal
+SELECT * FROM "BugReport";
+\q
+```
+
+## Environment Variables
+
+The `.env` file is already configured with:
+```
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bugreportportal"
+PORT=3000
+```
+
+**Update DATABASE_URL if you used a different PostgreSQL password.**
+
+## Troubleshooting
+
+### "password authentication failed"
+Update `.env` with your PostgreSQL password:
+```
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/bugreportportal"
+```
+
+### "database does not exist"
+Create the database:
+```bash
+psql -U postgres -c "CREATE DATABASE bugreportportal;"
+```
+
+### "relation BugReport does not exist"
+Run migrations:
+```bash
+npx prisma migrate dev --name init
+```
+
+### Check Logs
+The app now includes detailed logging. Look for:
+- ✅ = Success
+- ❌ = Error
+- 🔄 = In Progress
+- ⚠️ = Fallback mode
+
+## Features
+
+- ✅ Create new bug incidents
+- ✅ View all incidents with filtering
+- ✅ Update incident status
+- ✅ Assign incidents to team members
+- ✅ Upload screenshots
+- ✅ Real-time updates via WebSocket
+- ✅ Automatic fallback to JSON file if database is unavailable
+
+## Port Already in Use?
+
+If port 3000 is in use, update `.env`:
+```
+PORT=3001
+```
+
+---
+
+For more help, check the logs in the terminal when running `npm run dev`
