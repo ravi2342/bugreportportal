@@ -167,6 +167,46 @@ app.get('/incidents', async (req, res) => {
   });
 });
 
+// Search endpoint - NEW ROUTE
+app.get('/search', async (req, res) => {
+  const query = req.query.q || '';
+  let reports = [];
+  let currentUser = req.currentUser;
+  
+  try {
+    const prisma = getPrisma();
+    console.log('🔄 [Search] Searching for ticket:', query);
+    reports = await prisma.bugReport.findMany({ orderBy: { createdAt: 'desc' } });
+    console.log('✅ [Search] Successfully fetched reports from database');
+  } catch (e) {
+    console.error('❌ [Search] Prisma error:', e.message || e);
+    console.log('⚠️ [Search] Falling back to JSON file...');
+    reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  // Filter by search query - search in ID, title, description, and reporter
+  let filteredReports = reports;
+  if (query && query.trim() !== '') {
+    const queryLower = query.toLowerCase();
+    filteredReports = reports.filter(r => 
+      r.id.toString().includes(query) ||
+      (r.title && r.title.toLowerCase().includes(queryLower)) ||
+      (r.description && r.description.toLowerCase().includes(queryLower)) ||
+      (r.reporter && r.reporter.toLowerCase().includes(queryLower))
+    );
+    console.log('🔍 [Search] Found', filteredReports.length, 'matching reports');
+  }
+
+  res.render('incidents', {
+    appName: app.locals.appName,
+    currentUser,
+    filter: null,
+    status: null,
+    reports: filteredReports,
+    searchQuery: query
+  });
+});
+
 // Create Incident page
 app.get('/incidents/create', (req, res) => {
   res.render('create-incident', {
