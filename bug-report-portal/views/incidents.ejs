@@ -6,57 +6,223 @@
   <title><%= appName %> - Incidents</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f5f7fb; }
+    
+    .navbar {
+      background: white;
+      padding: 18px 32px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .navbar-left { display: flex; gap: 20px; align-items: center; }
+    .navbar-right { display: flex; gap: 18px; align-items: center; }
+    
+    .filter-group select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      font-size: 13px;
+      background: white;
+      cursor: pointer;
+    }
+    
+    .incident-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 4px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .incident-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
+    }
+    
+    .incident-card.assigned { border-left-color: #16a34a; }
+    .incident-card.unassigned { border-left-color: #f59e0b; }
+    
+    .incident-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    
+    .incident-id-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+    
+    .incident-number {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f766e;
+    }
+    
+    .incident-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .status-OPEN { background: #fef3c7; color: #92400e; }
+    .status-ASSIGNED { background: #dbeafe; color: #0c4a6e; }
+    .status-IN_PROGRESS { background: #bfdbfe; color: #1e40af; }
+    .status-RESOLVED { background: #dcfce7; color: #15803d; }
+    .status-CLOSED { background: #dcfce7; color: #15803d; }
+    .status-ON_HOLD { background: #fecaca; color: #7f1d1d; }
+    .status-REOPENED { background: #fed7aa; color: #7c2d12; }
+    
+    .incident-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      font-size: 12px;
+      color: #64748b;
+      margin: 12px 0;
+    }
+    
+    .meta-item { display: flex; flex-direction: column; }
+    .meta-label { font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .meta-value { color: #1e293b; font-weight: 500; }
+    
+    .incident-description {
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 12px 0;
+    }
+    
+    .incident-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #f1f5f9;
+    }
+    
+    .incident-time {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    
+    .assignee-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #f0fdf4;
+      color: #15803d;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .assignee-badge.unassigned {
+      background: #fef3c7;
+      color: #92400e;
+    }
+  </style>
 </head>
 <body>
   <div class="layout" style="display:flex;min-height:100vh;">
-    <%- include('sidebar', { appName, current: 'incidents' + (status ? '-' + status : '') }) %>
+    <%- include('sidebar', { appName, current: 'incidents' }) %>
     <div class="main-content" style="flex:1;display:flex;flex-direction:column;min-height:100vh;background:#f5f7fb;">
       <div class="navbar">
-        <span class="app-title">Incidents</span>
-        <div style="display:flex;align-items:center;gap:18px;">
+        <div class="navbar-left">
+          <span class="app-title">Incidents</span>
+          <div class="filter-group">
+            <select onchange="if(this.value) window.location='/incidents?filter=' + this.value;">
+              <option value="">All Incidents</option>
+              <option value="myIncidents">Opened by Me</option>
+            </select>
+          </div>
+        </div>
+        <div class="navbar-right">
           <form action="/search" method="get" style="display:inline-flex;align-items:center;gap:4px;">
             <input type="text" name="q" placeholder="Search ticket #" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:120px;font-size:1em;" />
-            <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;">Search</button>
+            <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;cursor:pointer;font-weight:500;">Search</button>
           </form>
           <span style="color:#64748b;font-size:1em;">Welcome<% if (currentUser && currentUser !== 'guest') { %>, <%= currentUser %><% } %></span>
         </div>
       </div>
       <div style="padding: 32px;">
-        <h2>
-          <% if (status) { %>
-            <%= status.replace('_',' ').toUpperCase() %> Incidents
-          <% } else { %>
-            All Incidents
-          <% } %>
-        </h2>
         <% if (reports.length === 0) { %>
-          <div style="color:#64748b;margin-bottom:24px;">No incidents found for this filter.</div>
+          <div style="color:#64748b;margin-bottom:24px;background:white;padding:32px;border-radius:8px;text-align:center;">No incidents found.</div>
         <% } %>
         <% reports.forEach(function(report) { %>
-          <div class="card" onclick="window.location='/report/<%= report.id %>'" style="cursor:pointer;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div>
-                <% if (report.status) { %>
-                  <span class="status-badge status-<%= report.status %>"><%= report.status.replace('_',' ') %></span>
+          <div class="incident-card <% if (report.assignee) { %>assigned<% } else { %>unassigned<% } %>" onclick="window.location='/report/<%= report.id %>'">
+            <div class="incident-header">
+              <div class="incident-id-title">
+                <span class="incident-number">#<%= report.id %></span>
+                <span class="incident-title"><%= report.title %></span>
+              </div>
+              <span class="status-badge status-<%= report.status %>">
+                <% if (report.status === 'RESOLVED' || report.status === 'CLOSED') { %>
+                  Done
                 <% } else { %>
-                  <span class="status-badge status-OPEN">OPEN</span>
+                  <%= report.status.replace(/_/g, ' ') %>
                 <% } %>
-                <b>#<%= report.id %> — <%= report.title %></b>
-              </div>
-              <span style="color:#64748b;font-size:0.95em;">Reporter: <%= report.reporter %></span>
+              </span>
             </div>
-            <div style="margin:8px 0 4px 0;">
-              <b>Priority:</b> <%= report.priority %>
-            </div>
-            <div><%= report.description %></div>
-            <% if (report.screenshot) { %>
-              <div style="margin-top:8px;">
-                <b>Bug screenshot</b><br/>
-                <img src="/uploads/<%= report.screenshot %>" alt="screenshot" style="max-width:220px;max-height:120px;" onerror="this.src='/public/placeholder.png'" />
+            
+            <div class="incident-meta">
+              <div class="meta-item">
+                <span class="meta-label">Priority</span>
+                <% 
+                  let priorityColor = '#16a34a';
+                  if (report.priority === 'Critical') priorityColor = '#dc2626';
+                  else if (report.priority === 'High') priorityColor = '#ea580c';
+                  else if (report.priority === 'Medium') priorityColor = '#f59e0b';
+                %>
+                <span style="color: <%= priorityColor %>; font-weight: 600;"><%= report.priority %></span>
               </div>
-            <% } %>
-            <div style="margin-top:8px;color:#64748b;font-size:0.95em;">
-              <%= new Date(report.createdAt).toLocaleString() %>
+              <div class="meta-item">
+                <span class="meta-label">Reporter</span>
+                <span class="meta-value">
+                  <% if (report.reporter && report.reporter !== 'guest' && report.reporter !== 'anonymous') { %>
+                    <%= report.reporter %>
+                  <% } else { %>
+                    <em style="color: #94a3b8;">Anonymous</em>
+                  <% } %>
+                </span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Assigned</span>
+                <% if (report.assignee) { %>
+                  <span class="assignee-badge"><%= report.assignee %></span>
+                <% } else { %>
+                  <span class="assignee-badge unassigned">Unassigned</span>
+                <% } %>
+              </div>
+            </div>
+            
+            <div class="incident-description">
+              <%= report.description %>
+            </div>
+            
+            <div class="incident-footer">
+              <span class="incident-time"><%= new Date(report.createdAt).toLocaleString() %></span>
             </div>
           </div>
         <% }) %>

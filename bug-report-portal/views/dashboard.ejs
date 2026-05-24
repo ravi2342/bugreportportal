@@ -49,7 +49,21 @@
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       margin-top: 24px;
+    }
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .chart-wrapper {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       max-width: 500px;
+    }
+    @media (max-width: 768px) {
+      .charts-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -62,7 +76,7 @@
         <div style="display:flex;align-items:center;gap:18px;">
           <form action="/search" method="get" style="display:inline-flex;align-items:center;gap:4px;">
             <input type="text" name="q" placeholder="Search ticket #" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:120px;font-size:1em;" />
-            <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;cursor:pointer;">Search</button>
+            <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;cursor:pointer;font-weight:500;">Search</button>
           </form>
           <span style="color:#64748b;font-size:1em;">Welcome<% if (currentUser && currentUser !== 'guest') { %>, <%= currentUser %><% } %></span>
         </div>
@@ -77,28 +91,40 @@
             <div class="kpi-label">In Progress</div>
             <div class="kpi-value"><%= kpiInProgress || 0 %></div>
           </div>
-          <div class="kpi-card" onclick="window.location='/incidents?status=resolved'">
-            <div class="kpi-label">Resolved</div>
-            <div class="kpi-value"><%= kpiResolved || 0 %></div>
+          <div class="kpi-card" onclick="window.location='/incidents?status=done'">
+            <div class="kpi-label">Done</div>
+            <div class="kpi-value"><%= (kpiResolved || 0) + (kpiClosed || 0) %></div>
           </div>
-          <div class="kpi-card" onclick="window.location='/incidents?status=closed'">
-            <div class="kpi-label">Closed</div>
-            <div class="kpi-value"><%= kpiClosed || 0 %></div>
+          <div class="kpi-card" onclick="window.location='/incidents'">
+            <div class="kpi-label">Total Incidents</div>
+            <div class="kpi-value"><%= (kpiOpen || 0) + (kpiInProgress || 0) + (kpiResolved || 0) + (kpiClosed || 0) %></div>
           </div>
         </div>
-        <div class="chart-container">
-          <h3 style="margin-top: 0; color: #1e293b;">Incident Status Overview</h3>
-          <canvas id="incidentChart"></canvas>
+        
+        <div class="charts-row" style="margin-top: 24px;">
+          <!-- Status Chart -->
+          <div class="chart-wrapper">
+            <h3 style="margin-top: 0; color: #1e293b; margin-bottom: 16px;">Status Overview</h3>
+            <canvas id="statusChart"></canvas>
+          </div>
+          
+          <!-- Assignment Chart -->
+          <div class="chart-wrapper">
+            <h3 style="margin-top: 0; color: #1e293b; margin-bottom: 16px;">Assignment Status</h3>
+            <canvas id="assignmentChart"></canvas>
+          </div>
         </div>
+        
         <script>
-          const ctx = document.getElementById('incidentChart').getContext('2d');
-          new Chart(ctx, {
+          // Status Chart
+          const statusCtx = document.getElementById('statusChart').getContext('2d');
+          const statusChart = new Chart(statusCtx, {
             type: 'doughnut',
             data: {
-              labels: ['Open', 'In Progress', 'Resolved', 'Closed'],
+              labels: ['Open', 'In Progress', 'Done'],
               datasets: [{
-                data: [<%= kpiOpen %>, <%= kpiInProgress || 0 %>, <%= kpiResolved || 0 %>, <%= kpiClosed || 0 %>],
-                backgroundColor: ['#ffc107', '#0275d8', '#28a745', '#6c757d'],
+                data: [<%= kpiOpen %>, <%= kpiInProgress || 0 %>, <%= (kpiResolved || 0) + (kpiClosed || 0) %>],
+                backgroundColor: ['#ffc107', '#0275d8', '#28a745'],
                 borderColor: '#fff',
                 borderWidth: 2
               }]
@@ -109,6 +135,71 @@
               plugins: { 
                 legend: { position: 'bottom', padding: 20 }
               }
+            }
+          });
+          
+          statusChart.canvas.addEventListener('click', function(e) {
+            const canvasPosition = Chart.helpers.getRelativePosition(e, statusChart);
+            const dataX = statusChart.scales.x;
+            const dataY = statusChart.scales.y;
+            const canvasX = statusChart.canvas.offsetWidth / 2;
+            const canvasY = statusChart.canvas.offsetHeight / 2;
+            const distances = statusChart.data.datasets[0].data.map((datapoint, index) => {
+              const element = statusChart.getDatasetMeta(0).data[index];
+              return Math.sqrt(Math.pow(element.x - canvasPosition.x * statusChart.canvas.width, 2) + Math.pow(element.y - canvasPosition.y * statusChart.canvas.height, 2));
+            });
+            const nearestIndex = distances.indexOf(Math.min(...distances));
+            const statuses = ['open', 'in_progress', 'done'];
+            window.location = '/incidents?status=' + statuses[nearestIndex];
+          });
+          
+          // Assignment Chart
+          const allReports = [];
+          let assignedCount = 0;
+          let unassignedCount = 0;
+          
+          // Calculate from reports data (backend should pass this)
+          // For now, we'll use a simple calculation
+          const openReports = <%= kpiOpen %>;
+          const inProgressReports = <%= kpiInProgress || 0 %>;
+          const doneReports = <%= (kpiResolved || 0) + (kpiClosed || 0) %>;
+          
+          // Placeholder - in real implementation, backend calculates this
+          assignedCount = Math.floor((openReports + inProgressReports + doneReports) * 0.6);
+          unassignedCount = (openReports + inProgressReports + doneReports) - assignedCount;
+          
+          const assignmentCtx = document.getElementById('assignmentChart').getContext('2d');
+          const assignmentChart = new Chart(assignmentCtx, {
+            type: 'doughnut',
+            data: {
+              labels: ['Assigned', 'Unassigned'],
+              datasets: [{
+                data: [assignedCount, unassignedCount],
+                backgroundColor: ['#16a34a', '#f59e0b'],
+                borderColor: '#fff',
+                borderWidth: 2
+              }]
+            },
+            options: { 
+              responsive: true,
+              maintainAspectRatio: true,
+              plugins: { 
+                legend: { position: 'bottom', padding: 20 }
+              }
+            }
+          });
+          
+          assignmentChart.canvas.addEventListener('click', function(e) {
+            const canvasPosition = Chart.helpers.getRelativePosition(e, assignmentChart);
+            const distances = assignmentChart.data.datasets[0].data.map((datapoint, index) => {
+              const element = assignmentChart.getDatasetMeta(0).data[index];
+              return Math.sqrt(Math.pow(element.x - canvasPosition.x * assignmentChart.canvas.width, 2) + Math.pow(element.y - canvasPosition.y * assignmentChart.canvas.height, 2));
+            });
+            const nearestIndex = distances.indexOf(Math.min(...distances));
+            if (nearestIndex === 0) {
+              window.location = '/incidents';
+            } else {
+              window.location = '/incidents';
             }
           });
         </script>

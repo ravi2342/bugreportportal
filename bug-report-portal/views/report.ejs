@@ -39,9 +39,7 @@
       margin-bottom: 8px;
     }
     
-    .back-link:hover {
-      color: #0d5d5a;
-    }
+    .back-link:hover { color: #0d5d5a; }
     
     .status-badge {
       display: inline-block;
@@ -57,7 +55,7 @@
     .status-ASSIGNED { background: #dbeafe; color: #0c4a6e; }
     .status-IN_PROGRESS { background: #bfdbfe; color: #1e40af; }
     .status-RESOLVED { background: #dcfce7; color: #15803d; }
-    .status-CLOSED { background: #e5e7eb; color: #374151; }
+    .status-CLOSED { background: #dcfce7; color: #15803d; }
     .status-ON_HOLD { background: #fecaca; color: #7f1d1d; }
     .status-REOPENED { background: #fed7aa; color: #7c2d12; }
     
@@ -193,10 +191,7 @@
       font-weight: 500;
     }
     
-    .status-select:hover {
-      border-color: #cbd5e1;
-    }
-    
+    .status-select:hover { border-color: #cbd5e1; }
     .status-select:focus {
       outline: none;
       border-color: #0f766e;
@@ -213,10 +208,7 @@
       cursor: pointer;
     }
     
-    .assign-select:hover {
-      border-color: #cbd5e1;
-    }
-    
+    .assign-select:hover { border-color: #cbd5e1; }
     .assign-select:focus {
       outline: none;
       border-color: #0f766e;
@@ -249,7 +241,11 @@
         <h1>Incident <%= report.id %></h1>
       </div>
       <span class="status-badge status-<%= (report.status || 'OPEN').replace(/\s+/g, '_') %>">
-        <%= (report.status || 'OPEN').replace(/_/g, ' ') %>
+        <% if (report.status === 'RESOLVED' || report.status === 'CLOSED') { %>
+          Done
+        <% } else { %>
+          <%= (report.status || 'OPEN').replace(/_/g, ' ') %>
+        <% } %>
       </span>
     </div>
 
@@ -278,7 +274,13 @@
             </div>
             <div class="field">
               <div class="field-label">Reporter</div>
-              <div class="field-value"><%= report.reporter %></div>
+              <div class="field-value">
+                <% if (report.reporter && report.reporter !== 'guest' && report.reporter !== 'anonymous') { %>
+                  <%= report.reporter %>
+                <% } else { %>
+                  <em style="color: #94a3b8;">Anonymous</em>
+                <% } %>
+              </div>
             </div>
           </div>
           <div class="field-group">
@@ -322,15 +324,20 @@
       <div class="incident-sidebar">
         <!-- Status Dropdown -->
         <div class="sidebar-section">
-          <div class="sidebar-title">Change Status</div>
+          <div class="sidebar-title">Status</div>
           <select id="status-select" class="status-select" onchange="changeStatus()">
-            <option value="<%= report.status || 'OPEN' %>" selected><%= (report.status || 'OPEN').replace(/_/g, ' ') %></option>
+            <% 
+              let currentStatus = report.status || 'OPEN';
+              let currentStatusDisplay = currentStatus.replace(/_/g, ' ');
+              if (currentStatus === 'RESOLVED' || currentStatus === 'CLOSED') {
+                currentStatusDisplay = 'Done';
+              }
+            %>
+            <option value="<%= currentStatus %>" selected><%= currentStatusDisplay %></option>
             <option value="OPEN">Open</option>
-            <option value="ASSIGNED">Assigned</option>
             <option value="IN_PROGRESS">In Progress</option>
             <option value="ON_HOLD">On Hold</option>
-            <option value="RESOLVED">Resolved</option>
-            <option value="CLOSED">Closed</option>
+            <option value="RESOLVED">Done</option>
           </select>
         </div>
 
@@ -348,7 +355,7 @@
 
         <!-- Current Assignee -->
         <div class="sidebar-section">
-          <div class="sidebar-title">Assigned To</div>
+          <div class="sidebar-title">Currently Assigned</div>
           <div class="current-assignee">
             <% if (report.assignee) { %>
               <strong><%= report.assignee %></strong>
