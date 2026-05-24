@@ -102,8 +102,12 @@ app.get('/dashboard', async (req, res) => {
   let currentUser = req.currentUser;
   try {
     const prisma = getPrisma();
+    console.log('🔄 [Dashboard] Fetching from Prisma database...');
     reports = await prisma.bugReport.findMany({ orderBy: { createdAt: 'desc' } });
+    console.log('✅ [Dashboard] Successfully fetched', reports.length, 'reports from database');
   } catch (e) {
+    console.error('❌ [Dashboard] Prisma error:', e.message || e);
+    console.log('⚠️ [Dashboard] Falling back to JSON file...');
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
   // KPIs and chart data
@@ -135,8 +139,12 @@ app.get('/incidents', async (req, res) => {
   let currentUser = req.currentUser;
   try {
     const prisma = getPrisma();
+    console.log('🔄 [Incidents] Fetching from Prisma database...');
     reports = await prisma.bugReport.findMany({ orderBy: { createdAt: 'desc' } });
+    console.log('✅ [Incidents] Successfully fetched', reports.length, 'reports from database');
   } catch (e) {
+    console.error('❌ [Incidents] Prisma error:', e.message || e);
+    console.log('⚠️ [Incidents] Falling back to JSON file...');
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
   let filteredReports = reports;
@@ -255,11 +263,14 @@ app.post('/report', upload.single('screenshot'), async (req, res) => {
   if (assignee && assignee.trim() !== '') payload.assignee = assignee;
 
   try {
+    console.log('🔄 [POST /report] Creating new report in Prisma database...');
     const created = await getPrisma().bugReport.create({ data: payload });
+    console.log('✅ [POST /report] Report created successfully with ID:', created.id);
     if (global.io) global.io.emit('new-report', created);
     return res.redirect('/incidents');
   } catch (err) {
-    console.error('Prisma error on POST /report, using fallback:', err.message || err);
+    console.error('❌ [POST /report] Prisma error:', err.message || err);
+    console.log('⚠️ [POST /report] Using fallback JSON storage...');
     const created = appendFallbackReport(payload);
     if (global.io) global.io.emit('new-report', created);
     return res.redirect('/incidents');
@@ -278,7 +289,13 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`
+╔════════════════════════════════════════╗
+║  🚀 OpsCenter Bug Report Portal        ║
+║  Server running on http://localhost:${PORT}  ║
+╚════════════════════════════════════════╝
+  `);
+  console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ Configured' : '❌ Not configured');
 });
 
 process.on('SIGINT', async () => {
