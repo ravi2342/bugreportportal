@@ -5,61 +5,7 @@
   </div>
   <nav>
     <a href="/dashboard" class="<%= current === 'dashboard' ? 'active' : '' %>">Dashboard</a>
-    <div class="dropdown">
-      <button class="dropdown-btn <%= current && current.startsWith('incidents') ? 'active' : '' %>">Incidents ▼</button>
-      <div class="dropdown-content">
-        <a href="/incidents?status=open" class="<%= current === 'incidents-open' ? 'active' : '' %>">Open</a>
-        <a href="/incidents?status=in_progress" class="<%= current === 'incidents-in_progress' ? 'active' : '' %>">In Progress</a>
-        <a href="/incidents?status=resolved" class="<%= current === 'incidents-resolved' ? 'active' : '' %>">Resolved</a>
-        <a href="/incidents?status=closed" class="<%= current === 'incidents-closed' ? 'active' : '' %>">Closed</a>
-        <a href="/incidents" class="<%= current === 'incidents' ? 'active' : '' %>">All Incidents</a>
-        <a href="/incidents/create" class="<%= current === 'incidents-create' ? 'active' : '' %>" style="color:#22c55e;font-weight:600;">+ Create Incident</a>
-      </div>
-    </div>
+    <a href="/incidents" class="<%= current && current.startsWith('incidents') ? 'active' : '' %>">Incidents</a>
+    <a href="/incidents/create" class="<%= current === 'incidents-create' ? 'active' : '' %>" style="color:#22c55e;font-weight:600;">+ Create Incident</a>
   </nav>
 </aside>
-<style>
-.dropdown { position: relative; }
-.dropdown-btn {
-  background: none;
-  border: none;
-  color: #cbd5e1;
-  font-size: 1.1em;
-  text-align: left;
-  padding: 8px 0 8px 0;
-  width: 100%;
-  cursor: pointer;
-  outline: none;
-  border-left: 4px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
-}
-.dropdown-btn.active, .dropdown-btn:hover {
-  color: #38bdf8;
-  border-left: 4px solid #38bdf8;
-  background: rgba(56,189,248,0.08);
-}
-.dropdown-content {
-  display: none;
-  flex-direction: column;
-  position: static;
-  background: none;
-  box-shadow: none;
-  margin-left: 16px;
-}
-.dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content {
-  display: flex;
-}
-.dropdown-content a {
-  color: #cbd5e1;
-  text-decoration: none;
-  font-size: 1em;
-  padding: 6px 0 6px 0;
-  border-left: 4px solid transparent;
-  transition: color 0.2s, border-color 0.2s;
-}
-.dropdown-content a.active, .dropdown-content a:hover {
-  color: #38bdf8;
-  border-left: 4px solid #38bdf8;
-  background: rgba(56,189,248,0.08);
-}
-</style>

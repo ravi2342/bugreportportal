@@ -47,13 +47,14 @@
       border-radius: 4px;
       font-size: 12px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      text-transform: none;
+      letter-spacing: 0;
     }
     
     .status-OPEN { background: #fef3c7; color: #92400e; }
     .status-ASSIGNED { background: #dbeafe; color: #0c4a6e; }
     .status-IN_PROGRESS { background: #bfdbfe; color: #1e40af; }
+    .status-DONE { background: #dcfce7; color: #15803d; }
     .status-RESOLVED { background: #dcfce7; color: #15803d; }
     .status-CLOSED { background: #dcfce7; color: #15803d; }
     .status-ON_HOLD { background: #fecaca; color: #7f1d1d; }
@@ -83,8 +84,8 @@
       font-size: 12px;
       font-weight: 600;
       color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      text-transform: none;
+      letter-spacing: 0;
       margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 1px solid #e2e8f0;
@@ -96,6 +97,107 @@
       font-weight: 600;
       color: #0f766e;
       line-height: 1.4;
+    }
+
+    .edit-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .edit-toolbar .toolbar-item {
+      min-width: 180px;
+    }
+
+    .btn-edit-toggle {
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+    }
+
+    .btn-edit-toggle:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    .edit-icon {
+      width: 16px;
+      height: 16px;
+      color: #334155;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .edit-icon svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    .edit-form {
+      display: none;
+      margin-top: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 14px;
+    }
+
+    .edit-form.visible { display: block; }
+
+    .edit-form input,
+    .edit-form select,
+    .edit-form textarea {
+      width: 100%;
+      border: 1px solid #dbe3ec;
+      border-radius: 6px;
+      padding: 9px;
+      font-family: inherit;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .edit-form textarea { min-height: 110px; resize: vertical; }
+
+    .edit-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #334155;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #0f766e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-weight: 600;
+      cursor: pointer;
     }
     
     .field-group {
@@ -114,8 +216,8 @@
       font-size: 12px;
       font-weight: 500;
       color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      text-transform: none;
+      letter-spacing: 0;
       margin-bottom: 6px;
     }
     
@@ -173,8 +275,8 @@
       font-size: 12px;
       font-weight: 600;
       color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      text-transform: none;
+      letter-spacing: 0;
       margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 1px solid #e2e8f0;
@@ -182,7 +284,8 @@
     
     .status-select {
       width: 100%;
-      padding: 10px;
+      min-height: 42px;
+      padding: 10px 12px;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
       font-size: 13px;
@@ -200,7 +303,8 @@
     
     .assign-select {
       width: 100%;
-      padding: 10px;
+      min-height: 42px;
+      padding: 10px 12px;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
       font-size: 13px;
@@ -225,6 +329,173 @@
     
     .current-assignee strong { color: #15803d; }
     .current-assignee em { color: #94a3b8; }
+
+    .comments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .comment-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .comment-meta {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    .comment-text {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .comment-form textarea {
+      width: 100%;
+      min-height: 90px;
+      border: 1px solid #dbe3ec;
+      border-radius: 6px;
+      padding: 10px;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    .comment-form button {
+      margin-top: 10px;
+      background: #0f766e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .comment-form button:hover { background: #0d5d5a; }
+
+    .workflow-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid #dbe3ec;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .workflow-panel.visible { display: block; }
+
+    .workflow-graph {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .workflow-node {
+      min-width: 160px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid #dbe3ec;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .workflow-node.active {
+      border-color: #0f766e;
+      background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 100%);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.08);
+    }
+
+    .workflow-node.done {
+      border-color: #86efac;
+      background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 100%);
+    }
+
+    .workflow-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: 0.1px;
+    }
+
+    .workflow-pill.open {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .workflow-pill.progress {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .workflow-pill.done {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .workflow-node-name {
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .workflow-node-meta {
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .workflow-arrow {
+      width: 34px;
+      height: 2px;
+      background: linear-gradient(90deg, #cbd5e1 0%, #94a3b8 100%);
+      position: relative;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .workflow-arrow::after {
+      content: '';
+      position: absolute;
+      right: -2px;
+      top: -4px;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 8px solid #94a3b8;
+    }
+
+    .attachment-uploader {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .attachment-uploader form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .attachment-uploader input[type="file"] {
+      flex: 1;
+      min-width: 220px;
+      padding: 10px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      background: #fff;
+    }
     
     @media (max-width: 768px) {
       .incident-content { grid-template-columns: 1fr; }
@@ -241,10 +512,10 @@
         <h1>Incident <%= report.id %></h1>
       </div>
       <span class="status-badge status-<%= (report.status || 'OPEN').replace(/\s+/g, '_') %>">
-        <% if (report.status === 'RESOLVED' || report.status === 'CLOSED') { %>
+        <% if (['DONE', 'RESOLVED', 'CLOSED'].includes(report.status)) { %>
           Done
         <% } else { %>
-          <%= (report.status || 'OPEN').replace(/_/g, ' ') %>
+          <%= (report.status || 'OPEN').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) %>
         <% } %>
       </span>
     </div>
@@ -254,6 +525,90 @@
         <!-- Title -->
         <div class="title-section">
           <div class="incident-title"><%= report.title %></div>
+        </div>
+
+        <!-- Edit Controls -->
+        <div class="section">
+          <div class="edit-toolbar">
+            <div>
+              <button class="btn-edit-toggle" type="button" onclick="toggleEditForm()">
+                <span class="edit-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15.232 5.232a2.5 2.5 0 0 1 3.536 3.536L8.5 19.036 4 20l.964-4.5L15.232 5.232Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                Edit
+              </button>
+            </div>
+            <div>
+              <button class="btn-edit-toggle" type="button" onclick="scrollToComments()">Add Comment</button>
+            </div>
+            <div class="toolbar-item">
+              <select id="status-select" class="status-select" onchange="changeStatus()">
+                <% 
+                  let currentStatus = report.status || 'OPEN';
+                  let currentStatusDisplay = currentStatus.replace(/_/g, ' ');
+                  if (['DONE', 'RESOLVED', 'CLOSED'].includes(currentStatus)) {
+                    currentStatusDisplay = 'Done';
+                  }
+                %>
+                <option value="<%= currentStatus %>" selected><%= currentStatusDisplay %></option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="DONE">Done</option>
+                <option value="VIEW_WORKFLOW">View Workflow</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="workflow-panel" class="workflow-panel">
+            <% const workflowStatus = (report.status || 'OPEN'); %>
+            <% const workflowStep = workflowStatus === 'IN_PROGRESS' ? 2 : ((['DONE', 'RESOLVED', 'CLOSED'].includes(workflowStatus)) ? 3 : 1); %>
+            <div class="workflow-graph">
+              <div class="workflow-node <%= workflowStep > 1 ? 'done' : (workflowStep === 1 ? 'active' : '') %>">
+                <div class="workflow-pill open">Open</div>
+                <div class="workflow-node-name">Open</div>
+                <div class="workflow-node-meta">Raised and ready for triage</div>
+              </div>
+              <div class="workflow-arrow">→</div>
+              <div class="workflow-node <%= workflowStep > 2 ? 'done' : (workflowStep === 2 ? 'active' : '') %>">
+                <div class="workflow-pill progress">In Progress</div>
+                <div class="workflow-node-name">In Progress</div>
+                <div class="workflow-node-meta">Team is investigating or fixing</div>
+              </div>
+              <div class="workflow-arrow">→</div>
+              <div class="workflow-node <%= workflowStep === 3 ? 'active done' : '' %>">
+                <div class="workflow-pill done">Done</div>
+                <div class="workflow-node-name">Done</div>
+                <div class="workflow-node-meta">Resolution complete</div>
+              </div>
+            </div>
+          </div>
+
+          <form id="edit-form" class="edit-form" method="POST" action="/report/<%= report.id %>/update">
+            <div class="field-group">
+              <div class="field">
+                <div class="field-label">Title</div>
+                <input type="text" name="title" value="<%= report.title %>" required />
+              </div>
+              <div class="field">
+                <div class="field-label">Priority</div>
+                <select name="priority" required>
+                  <option value="Low" <% if (report.priority === 'Low') { %>selected<% } %>>Low</option>
+                  <option value="Medium" <% if (report.priority === 'Medium') { %>selected<% } %>>Medium</option>
+                  <option value="High" <% if (report.priority === 'High') { %>selected<% } %>>High</option>
+                  <option value="Critical" <% if (report.priority === 'Critical') { %>selected<% } %>>Critical</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <div class="field-label">Description</div>
+              <textarea name="description" required><%= report.description %></textarea>
+            </div>
+            <div class="edit-actions">
+              <button type="button" class="btn-secondary" onclick="toggleEditForm(false)">Cancel</button>
+              <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+          </form>
         </div>
 
         <!-- Metadata Grid -->
@@ -270,32 +625,6 @@
                   else if (report.priority === 'Medium') priorityClass = 'priority-medium';
                 %>
                 <span class="<%= priorityClass %>"><%= report.priority %></span>
-              </div>
-            </div>
-            <div class="field">
-              <div class="field-label">Reporter</div>
-              <div class="field-value">
-                <% if (report.reporter && report.reporter !== 'guest' && report.reporter !== 'anonymous') { %>
-                  <%= report.reporter %>
-                <% } else { %>
-                  <em style="color: #94a3b8;">Anonymous</em>
-                <% } %>
-              </div>
-            </div>
-          </div>
-          <div class="field-group">
-            <div class="field">
-              <div class="field-label">Created</div>
-              <div class="field-value"><%= new Date(report.createdAt).toLocaleString() %></div>
-            </div>
-            <div class="field">
-              <div class="field-label">Last Updated</div>
-              <div class="field-value">
-                <% if (report.updatedAt) { %>
-                  <%= new Date(report.updatedAt).toLocaleString() %>
-                <% } else { %>
-                  <em style="color: #94a3b8;">—</em>
-                <% } %>
               </div>
             </div>
           </div>
@@ -316,47 +645,128 @@
             <div class="screenshot-container">
               <img src="<%= report.screenshot %>" alt="Incident screenshot" onerror="this.src='/placeholder.png'" />
             </div>
+            <div class="attachment-uploader">
+              <form method="POST" action="/report/<%= report.id %>/attachment" enctype="multipart/form-data">
+                <input type="file" name="screenshot" accept="image/*" required />
+                <button type="submit" class="btn-primary">Replace Attachment</button>
+              </form>
+            </div>
+          </div>
+        <% } else { %>
+          <div class="section">
+            <div class="section-title">Attachment</div>
+            <div style="color:#64748b;font-size:13px;margin-bottom:12px;">No attachment added yet.</div>
+            <div class="attachment-uploader" style="margin-top:0;padding-top:0;border-top:none;">
+              <form method="POST" action="/report/<%= report.id %>/attachment" enctype="multipart/form-data">
+                <input type="file" name="screenshot" accept="image/*" required />
+                <button type="submit" class="btn-primary">Add Attachment</button>
+              </form>
+            </div>
           </div>
         <% } %>
+
+        <!-- Comments -->
+        <div class="section">
+          <div class="section-title">Comments</div>
+          <% if (comments && comments.length) { %>
+            <div class="comments-list">
+              <% comments.slice().reverse().forEach(function(comment) { %>
+                <div class="comment-card">
+                  <div class="comment-meta">
+                    <strong><%= comment.author %></strong> • <%= new Date(comment.createdAt).toLocaleString() %>
+                  </div>
+                  <div class="comment-text"><%= comment.text %></div>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <div style="color:#94a3b8;font-size:13px;margin-bottom:12px;">No comments yet.</div>
+          <% } %>
+
+          <form id="comment-form" class="comment-form" method="POST" action="/report/<%= report.id %>/comments">
+            <textarea name="comment" placeholder="Add progress updates, resolution notes, or closing comments" required></textarea>
+            <button type="submit">Add Comment</button>
+          </form>
+        </div>
       </div>
 
       <!-- Sidebar -->
       <div class="incident-sidebar">
-        <!-- Status & Assignment Dropdowns (merged) -->
         <div class="sidebar-section">
-          <div class="sidebar-title">Status</div>
-          <select id="status-select" class="status-select" onchange="changeStatus()">
-            <% 
-              let currentStatus = report.status || 'OPEN';
-              let currentStatusDisplay = currentStatus.replace(/_/g, ' ');
-              if (currentStatus === 'RESOLVED' || currentStatus === 'CLOSED') {
-                currentStatusDisplay = 'Done';
-              }
-            %>
-            <option value="IN_PROGRESS" <% if(currentStatus==='IN_PROGRESS'){%>selected<%}%>>In Progress</option>
-            <option value="ON_HOLD" <% if(currentStatus==='ON_HOLD'){%>selected<%}%>>On Hold</option>
-            <option value="RESOLVED" <% if(currentStatus==='RESOLVED'||currentStatus==='CLOSED'){%>selected<%}%>>Done</option>
-          </select>
+          <div class="sidebar-title">People</div>
+          <div class="field" style="margin-bottom: 10px;">
+            <div class="field-label">Assignee</div>
+            <select id="assignee-select" class="assign-select" onchange="assignTo()">
+              <option value="">— Unassigned —</option>
+              <option value="<%= currentUser %>" <% if (report.assignee === currentUser) { %>selected<% } %>><%= currentUser %></option>
+              <option value="support-team" <% if (report.assignee === 'support-team') { %>selected<% } %>>Support Team</option>
+              <option value="dev-team" <% if (report.assignee === 'dev-team') { %>selected<% } %>>Dev Team</option>
+              <option value="qa-team" <% if (report.assignee === 'qa-team') { %>selected<% } %>>QA Team</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom: 10px;">
+            <div class="field-label">Reporter</div>
+            <div class="field-value">
+              <% if (report.reporter && report.reporter !== 'guest' && report.reporter !== 'anonymous') { %>
+                <%= report.reporter %>
+              <% } else { %>
+                <em style="color: #94a3b8;">Anonymous</em>
+              <% } %>
+            </div>
+          </div>
         </div>
+
         <div class="sidebar-section">
-          <div class="sidebar-title">Assign</div>
-          <select id="assignee-select" class="assign-select" onchange="assignTo()">
-            <option value="">— Unassigned —</option>
-            <option value="<%= currentUser %>" <% if (report.assignee === currentUser) { %>selected<% } %>><%= currentUser %></option>
-            <option value="support-team" <% if (report.assignee === 'support-team') { %>selected<% } %>>Support Team</option>
-            <option value="dev-team" <% if (report.assignee === 'dev-team') { %>selected<% } %>>Dev Team</option>
-            <option value="qa-team" <% if (report.assignee === 'qa-team') { %>selected<% } %>>QA Team</option>
-          </select>
+          <div class="sidebar-title">Dates</div>
+          <div class="field" style="margin-bottom: 10px;">
+            <div class="field-label">Created</div>
+            <div class="field-value"><%= new Date(report.createdAt).toLocaleString() %></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Last Updated</div>
+            <div class="field-value">
+              <% if (report.updatedAt) { %>
+                <%= new Date(report.updatedAt).toLocaleString() %>
+              <% } else { %>
+                <em style="color: #94a3b8;">—</em>
+              <% } %>
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   </div>
 
   <script>
+    function toggleEditForm(forceOpen) {
+      const form = document.getElementById('edit-form');
+      const shouldOpen = forceOpen === undefined ? !form.classList.contains('visible') : !!forceOpen;
+      form.classList.toggle('visible', shouldOpen);
+    }
+
+    function toggleWorkflow() {
+      const panel = document.getElementById('workflow-panel');
+      panel.classList.toggle('visible');
+    }
+
+    function scrollToComments() {
+      const form = document.getElementById('comment-form');
+      if (!form) return;
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const textarea = form.querySelector('textarea');
+      if (textarea) textarea.focus();
+    }
+
     function changeStatus() {
       const select = document.getElementById('status-select');
       const status = select.value;
       if (!status) return;
+      if (status === 'VIEW_WORKFLOW') {
+        toggleWorkflow();
+        select.value = '<%= report.status || "OPEN" %>';
+        return;
+      }
       
       fetch('/report/<%= report.id %>/status', {
         method: 'POST',

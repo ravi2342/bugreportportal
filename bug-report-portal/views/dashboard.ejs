@@ -35,8 +35,8 @@
       color: #64748b;
       font-weight: 500;
       margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      text-transform: none;
+      letter-spacing: 0;
     }
     .kpi-value {
       font-size: 32px;
@@ -149,13 +149,17 @@
           
           // Assignment Chart
           const assignmentCtx = document.getElementById('assignmentChart').getContext('2d');
+          const teamLabels = <%- JSON.stringify(teamLabels || []) %>;
+          const teamCounts = <%- JSON.stringify(teamCounts || []) %>;
+          const teamKeys = <%- JSON.stringify(teamKeys || []) %>;
+          const teamColors = ['#16a34a', '#0ea5e9', '#8b5cf6', '#f59e0b', '#ef4444', '#64748b'];
           const assignmentChart = new Chart(assignmentCtx, {
             type: 'doughnut',
             data: {
-              labels: ['Assigned', 'Unassigned'],
+              labels: teamLabels,
               datasets: [{
-                data: [<%= assignedCount %>, <%= unassignedCount %>],
-                backgroundColor: ['#16a34a', '#f59e0b'],
+                data: teamCounts,
+                backgroundColor: teamLabels.map((_, i) => teamColors[i % teamColors.length]),
                 borderColor: '#fff',
                 borderWidth: 2
               }]
@@ -173,11 +177,8 @@
             const points = assignmentChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
             if (points.length) {
               const idx = points[0].index;
-              if (idx === 0) {
-                window.location = '/incidents?filter=assigned';
-              } else {
-                window.location = '/incidents?filter=unassigned';
-              }
+              const key = teamKeys[idx];
+              window.location = '/incidents?assignee=' + encodeURIComponent(key);
             }
           };
         </script>

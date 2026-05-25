@@ -82,13 +82,14 @@
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      text-transform: none;
+      letter-spacing: 0;
     }
     
     .status-OPEN { background: #fef3c7; color: #92400e; }
     .status-ASSIGNED { background: #dbeafe; color: #0c4a6e; }
     .status-IN_PROGRESS { background: #bfdbfe; color: #1e40af; }
+    .status-DONE { background: #dcfce7; color: #15803d; }
     .status-RESOLVED { background: #dcfce7; color: #15803d; }
     .status-CLOSED { background: #dcfce7; color: #15803d; }
     .status-ON_HOLD { background: #fecaca; color: #7f1d1d; }
@@ -104,7 +105,7 @@
     }
     
     .meta-item { display: flex; flex-direction: column; }
-    .meta-label { font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .meta-label { font-weight: 600; text-transform: none; letter-spacing: 0; margin-bottom: 2px; }
     .meta-value { color: #1e293b; font-weight: 500; }
     
     .incident-description {
@@ -180,10 +181,10 @@
                 <span class="incident-title"><%= report.title %></span>
               </div>
               <span class="status-badge status-<%= report.status %>">
-                <% if (report.status === 'RESOLVED' || report.status === 'CLOSED') { %>
+                <% if (['DONE', 'RESOLVED', 'CLOSED'].includes(report.status)) { %>
                   Done
                 <% } else { %>
-                  <%= report.status.replace(/_/g, ' ') %>
+                  <%= report.status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) %>
                 <% } %>
               </span>
             </div>

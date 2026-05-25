@@ -148,6 +148,7 @@ button:hover {
 .status-OPEN { background: #ffc107; color: #000; }
 .status-ASSIGNED { background: #17a2b8; color: white; }
 .status-IN_PROGRESS { background: #0275d8; color: white; }
+.status-DONE { background: #28a745; color: white; }
 .status-RESOLVED { background: #28a745; color: white; }
 .status-CLOSED { background: #6c757d; color: white; }
 

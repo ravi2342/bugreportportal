@@ -9,13 +9,8 @@ datasource db {
 
 enum BugStatus {
   OPEN
-  UNASSIGNED
-  ASSIGNED
   IN_PROGRESS
-  ON_HOLD
-  RESOLVED
-  CLOSED
-  REOPENED
+  DONE
 }
 
 model BugReport {
