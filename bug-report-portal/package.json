@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "PRISMA_CLIENT_ENGINE_TYPE=binary nodemon app.js",
     "start": "node app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed:demo": "node prisma/seed-demo.js",
+    "demo:reset": "npx prisma migrate reset --force && npm run seed:demo"
   },
   "keywords": [],
   "author": "",

@@ -25,4 +25,29 @@ model BugReport {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @default(now()) @updatedAt
   resolvedAt  DateTime?
+  comments    Comment[]
+  activities  ActivityLog[]
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  author    String
+  text      String
+  createdAt DateTime @default(now())
+  report    BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, createdAt])
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  reportId  Int
+  actor     String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+  report    BugReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, createdAt])
 }
