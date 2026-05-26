@@ -103,6 +103,40 @@ function appendFallbackComment(reportId, comment) {
   return comment;
 }
 
+function getActor(req) {
+  return req.currentUser && req.currentUser !== 'guest' ? req.currentUser : 'anonymous';
+}
+
+function toStatusLabel(status) {
+  if (!status) return 'Open';
+  if (['DONE', 'RESOLVED', 'CLOSED'].includes(status)) return 'Done';
+  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function withToast(pathname, type, message) {
+  const [basePath, existingQuery = ''] = pathname.split('?');
+  const params = new URLSearchParams(existingQuery);
+  params.set('toast', type);
+  params.set('toastMessage', message);
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+async function logActivity(prismaClient, { reportId, actor, action, details }) {
+  try {
+    await prismaClient.activityLog.create({
+      data: {
+        reportId,
+        actor,
+        action,
+        details: details || null
+      }
+    });
+  } catch (err) {
+    console.error('Failed to log activity:', err.message || err);
+  }
+}
+
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -204,11 +238,11 @@ app.get('/incidents', async (req, res) => {
   }
   if (status) {
     if (status.toLowerCase() === 'open') {
-      filteredReports = reports.filter(r => ['OPEN', 'IN_PROGRESS', 'ASSIGNED'].includes((r.status || 'OPEN').toUpperCase()));
+      filteredReports = filteredReports.filter(r => (r.status || 'OPEN').toUpperCase() === 'OPEN');
     } else if (status.toLowerCase() === 'done') {
-      filteredReports = reports.filter(r => ['DONE', 'RESOLVED', 'CLOSED'].includes((r.status || '').toUpperCase()));
+      filteredReports = filteredReports.filter(r => ['DONE', 'RESOLVED', 'CLOSED'].includes((r.status || '').toUpperCase()));
     } else {
-      filteredReports = filteredReports.filter(r => r.status && r.status.toLowerCase() === status.toLowerCase());
+      filteredReports = filteredReports.filter(r => (r.status || 'OPEN').toLowerCase() === status.toLowerCase());
     }
   }
   if (assignee) {
@@ -218,12 +252,32 @@ app.get('/incidents', async (req, res) => {
       filteredReports = filteredReports.filter(r => (r.assignee || '').trim() === assignee);
     }
   }
+  let currentViewLabel = 'All Incidents';
+  if (assignee) {
+    currentViewLabel = assignee === 'unassigned'
+      ? 'Unassigned Incidents'
+      : currentUser && assignee === currentUser
+        ? 'Assigned to Me'
+        : `Assigned to ${assignee}`;
+  } else if (status) {
+    if (status.toLowerCase() === 'open') currentViewLabel = 'Open Incidents';
+    else if (status.toLowerCase() === 'in_progress') currentViewLabel = 'In Progress';
+    else if (status.toLowerCase() === 'done') currentViewLabel = 'Done Incidents';
+    else currentViewLabel = status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  } else if (filter === 'myIncidents') {
+    currentViewLabel = 'Opened by Me';
+  } else if (filter === 'assigned') {
+    currentViewLabel = 'Assigned Incidents';
+  } else if (filter === 'unassigned') {
+    currentViewLabel = 'Unassigned Incidents';
+  }
   res.render('incidents', {
     appName: app.locals.appName,
     currentUser,
     filter,
     status,
     assignee,
+    currentViewLabel,
     reports: filteredReports
   });
 });
@@ -280,35 +334,66 @@ app.get('/incidents/create', (req, res) => {
 app.get('/report/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) return res.status(400).send('Invalid id');
-  const commentsByReport = readFallbackComments();
-  const comments = commentsByReport[String(id)] || [];
   const currentUser = req.currentUser;
   try {
-    const report = await getPrisma().bugReport.findUnique({ where: { id } });
+    const prisma = getPrisma();
+    const report = await prisma.bugReport.findUnique({ where: { id } });
     if (!report) return res.status(404).send('Report not found');
-    res.render('report', { report, comments, currentUser });
+
+    const comments = await prisma.comment.findMany({
+      where: { reportId: id },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    const activities = await prisma.activityLog.findMany({
+      where: { reportId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 25
+    });
+
+    res.render('report', { report, comments, activities, currentUser });
   } catch (err) {
     console.error('Prisma error on GET /report/:id', err.message || err);
     const reports = readFallbackReports();
     const report = reports.find(r => r.id === id);
-    if (report) return res.render('report', { report, comments, currentUser });
+    const commentsByReport = readFallbackComments();
+    const comments = commentsByReport[String(id)] || [];
+    if (report) return res.render('report', { report, comments, activities: [], currentUser });
     res.status(500).send('Database unavailable');
   }
 });
 
-app.post('/report/:id/comments', (req, res) => {
+app.post('/report/:id/comments', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const text = (req.body.comment || '').trim();
   if (Number.isNaN(id) || !text) {
-    return res.redirect(`/report/${req.params.id}`);
+    return res.redirect(withToast(`/report/${req.params.id}`, 'warning', 'Please enter a comment before submitting.'));
   }
-  const author = req.currentUser && req.currentUser !== 'guest' ? req.currentUser : 'anonymous';
-  appendFallbackComment(id, {
-    author,
-    text,
-    createdAt: new Date().toISOString()
-  });
-  return res.redirect(`/report/${id}`);
+  const author = getActor(req);
+  try {
+    const prisma = getPrisma();
+    await prisma.comment.create({
+      data: {
+        reportId: id,
+        author,
+        text
+      }
+    });
+    await logActivity(prisma, {
+      reportId: id,
+      actor: author,
+      action: 'Comment added',
+      details: text.slice(0, 120)
+    });
+  } catch (err) {
+    console.error('Error creating comment:', err.message || err);
+    appendFallbackComment(id, {
+      author,
+      text,
+      createdAt: new Date().toISOString()
+    });
+  }
+  return res.redirect(withToast(`/report/${id}`, 'success', 'Comment added successfully.'));
 });
 
 app.post('/report/:id/update', async (req, res) => {
@@ -322,15 +407,37 @@ app.post('/report/:id/update', async (req, res) => {
   if (typeof priority === 'string' && priority.trim() !== '') data.priority = priority.trim();
   if (assignee !== undefined) data.assignee = assignee && assignee.trim() !== '' ? assignee.trim() : null;
   if (status && status.trim() !== '') data.status = status.trim();
-  if (Object.keys(data).length === 0) return res.redirect(`/report/${id}`);
+  if (Object.keys(data).length === 0) {
+    return res.redirect(withToast(`/report/${id}`, 'warning', 'No changes detected.'));
+  }
 
   try {
-    const updated = await getPrisma().bugReport.update({
+    const prisma = getPrisma();
+    const existing = await prisma.bugReport.findUnique({ where: { id } });
+    const updated = await prisma.bugReport.update({
       where: { id },
       data
     });
+    const changes = [];
+    if (existing) {
+      if (data.title !== undefined && data.title !== existing.title) changes.push('Title updated');
+      if (data.description !== undefined && data.description !== existing.description) changes.push('Description updated');
+      if (data.priority !== undefined && data.priority !== existing.priority) changes.push(`Priority ${existing.priority} -> ${updated.priority}`);
+      if (data.assignee !== undefined && (data.assignee || null) !== (existing.assignee || null)) {
+        changes.push(`Assignee ${(existing.assignee || 'Unassigned')} -> ${(updated.assignee || 'Unassigned')}`);
+      }
+      if (data.status !== undefined && data.status !== existing.status) {
+        changes.push(`Status ${toStatusLabel(existing.status)} -> ${toStatusLabel(updated.status)}`);
+      }
+    }
+    await logActivity(prisma, {
+      reportId: id,
+      actor: getActor(req),
+      action: 'Incident updated',
+      details: changes.length ? changes.join(' | ') : 'Fields updated'
+    });
     if (global.io) global.io.emit('report-updated', updated);
-    return res.redirect(`/report/${id}`);
+    return res.redirect(withToast(`/report/${id}`, 'success', 'Incident details updated.'));
   } catch (err) {
     console.error('Error updating incident details:', err.message || err);
     try {
@@ -351,7 +458,7 @@ app.post('/report/:id/update', async (req, res) => {
         saveFallbackReports(reports);
         if (global.io) global.io.emit('report-updated', reports[idx]);
       }
-      return res.redirect(`/report/${id}`);
+      return res.redirect(withToast(`/report/${id}`, 'success', 'Incident details updated.'));
     } catch (e2) {
       console.error('Fallback incident update failed:', e2.message || e2);
       return res.status(500).send('Database unavailable');
@@ -361,15 +468,24 @@ app.post('/report/:id/update', async (req, res) => {
 
 app.post('/report/:id/attachment', upload.single('screenshot'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  if (Number.isNaN(id) || !req.file) return res.redirect(`/report/${req.params.id}`);
+  if (Number.isNaN(id) || !req.file) {
+    return res.redirect(withToast(`/report/${req.params.id}`, 'warning', 'Please select an image to upload.'));
+  }
   const screenshot = `/uploads/${req.file.filename}`;
   try {
-    const updated = await getPrisma().bugReport.update({
+    const prisma = getPrisma();
+    const updated = await prisma.bugReport.update({
       where: { id },
       data: { screenshot }
     });
+    await logActivity(prisma, {
+      reportId: id,
+      actor: getActor(req),
+      action: 'Attachment updated',
+      details: path.basename(screenshot)
+    });
     if (global.io) global.io.emit('report-updated', updated);
-    return res.redirect(`/report/${id}`);
+    return res.redirect(withToast(`/report/${id}`, 'success', 'Attachment updated successfully.'));
   } catch (err) {
     console.error('Error updating attachment:', err.message || err);
     try {
@@ -381,9 +497,48 @@ app.post('/report/:id/attachment', upload.single('screenshot'), async (req, res)
         saveFallbackReports(reports);
         if (global.io) global.io.emit('report-updated', reports[idx]);
       }
-      return res.redirect(`/report/${id}`);
+      return res.redirect(withToast(`/report/${id}`, 'success', 'Attachment updated successfully.'));
     } catch (e2) {
       console.error('Fallback attachment update failed:', e2.message || e2);
+      return res.status(500).send('Database unavailable');
+    }
+  }
+});
+
+app.post('/report/:id/attachment/remove', async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    return res.redirect(withToast(`/report/${req.params.id}`, 'error', 'Invalid report id.'));
+  }
+  try {
+    const prisma = getPrisma();
+    const existing = await prisma.bugReport.findUnique({ where: { id }, select: { screenshot: true } });
+    const updated = await prisma.bugReport.update({
+      where: { id },
+      data: { screenshot: null }
+    });
+    await logActivity(prisma, {
+      reportId: id,
+      actor: getActor(req),
+      action: 'Attachment removed',
+      details: existing?.screenshot ? path.basename(existing.screenshot) : 'No previous attachment'
+    });
+    if (global.io) global.io.emit('report-updated', updated);
+    return res.redirect(withToast(`/report/${id}`, 'success', 'Attachment removed.'));
+  } catch (err) {
+    console.error('Error removing attachment:', err.message || err);
+    try {
+      const reports = readFallbackReports();
+      const idx = reports.findIndex(r => r.id === id);
+      if (idx !== -1) {
+        reports[idx].screenshot = null;
+        reports[idx].updatedAt = new Date().toISOString();
+        saveFallbackReports(reports);
+        if (global.io) global.io.emit('report-updated', reports[idx]);
+      }
+      return res.redirect(withToast(`/report/${id}`, 'success', 'Attachment removed.'));
+    } catch (e2) {
+      console.error('Fallback attachment remove failed:', e2.message || e2);
       return res.status(500).send('Database unavailable');
     }
   }
@@ -394,9 +549,17 @@ app.post('/report/:id/status', async (req, res) => {
   const { status } = req.body;
   if (Number.isNaN(id) || !status) return res.status(400).json({ error: 'Invalid request' });
   try {
-    const updated = await getPrisma().bugReport.update({
+    const prisma = getPrisma();
+    const existing = await prisma.bugReport.findUnique({ where: { id }, select: { status: true } });
+    const updated = await prisma.bugReport.update({
       where: { id },
       data: { status }
+    });
+    await logActivity(prisma, {
+      reportId: id,
+      actor: getActor(req),
+      action: 'Status changed',
+      details: `${toStatusLabel(existing?.status || 'OPEN')} -> ${toStatusLabel(updated.status)}`
     });
     if (global.io) global.io.emit('report-updated', updated);
     res.json({ success: true, report: updated });
@@ -426,9 +589,17 @@ app.post('/report/:id/assign', async (req, res) => {
   const { assignee } = req.body;
   if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid request' });
   try {
-    const updated = await getPrisma().bugReport.update({
+    const prisma = getPrisma();
+    const existing = await prisma.bugReport.findUnique({ where: { id }, select: { assignee: true } });
+    const updated = await prisma.bugReport.update({
       where: { id },
       data: { assignee: assignee || null }
+    });
+    await logActivity(prisma, {
+      reportId: id,
+      actor: getActor(req),
+      action: 'Assignee changed',
+      details: `${existing?.assignee || 'Unassigned'} -> ${updated.assignee || 'Unassigned'}`
     });
     if (global.io) global.io.emit('report-updated', updated);
     res.json({ success: true, report: updated });
@@ -463,16 +634,23 @@ app.post('/report', upload.single('screenshot'), async (req, res) => {
 
   try {
     console.log('🔄 [POST /report] Creating new report in Prisma database...');
-    const created = await getPrisma().bugReport.create({ data: payload });
+    const prisma = getPrisma();
+    const created = await prisma.bugReport.create({ data: payload });
+    await logActivity(prisma, {
+      reportId: created.id,
+      actor: reporterName,
+      action: 'Incident created',
+      details: `Priority ${created.priority}${created.assignee ? ` | Assigned to ${created.assignee}` : ''}`
+    });
     console.log('✅ [POST /report] Report created successfully with ID:', created.id);
     if (global.io) global.io.emit('new-report', created);
-    return res.redirect('/incidents');
+    return res.redirect(withToast('/incidents', 'success', 'Incident created successfully.'));
   } catch (err) {
     console.error('❌ [POST /report] Prisma error:', err.message || err);
     console.log('⚠️ [POST /report] Using fallback JSON storage...');
     const created = appendFallbackReport(payload);
     if (global.io) global.io.emit('new-report', created);
-    return res.redirect('/incidents');
+    return res.redirect(withToast('/incidents', 'success', 'Incident created successfully.'));
   }
 });
 

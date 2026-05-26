@@ -1,11 +1,37 @@
 <aside class="sidebar">
   <div class="logo">
-    <img src="/favicon.svg" alt="logo" style="height:32px;vertical-align:middle;margin-right:8px;"/>
-    <%= appName %>
+    <div class="logo-mark">
+      <img src="/favicon.svg" alt="logo" style="height:32px;vertical-align:middle;"/>
+    </div>
+    <div class="logo-copy">
+      <span class="logo-title"><%= appName %></span>
+      <span class="logo-subtitle">Incident Command Center</span>
+    </div>
   </div>
+  <% 
+    const incidentsMenuActive = current === 'incidents';
+    const assignedToMeActive = incidentsMenuActive && currentUser && currentUser !== 'guest' && assignee === currentUser;
+    const inProgressActive = incidentsMenuActive && (status || '').toLowerCase() === 'in_progress';
+    const doneActive = incidentsMenuActive && (status || '').toLowerCase() === 'done';
+    const allIncidentsActive = incidentsMenuActive && !filter && !status && !assignee;
+    const assignedToMeHref = currentUser && currentUser !== 'guest'
+      ? `/incidents?assignee=${encodeURIComponent(currentUser)}`
+      : '/incidents?filter=assigned';
+  %>
   <nav>
     <a href="/dashboard" class="<%= current === 'dashboard' ? 'active' : '' %>">Dashboard</a>
-    <a href="/incidents" class="<%= current && current.startsWith('incidents') ? 'active' : '' %>">Incidents</a>
-    <a href="/incidents/create" class="<%= current === 'incidents-create' ? 'active' : '' %>" style="color:#22c55e;font-weight:600;">+ Create Incident</a>
+    <div class="nav-group <%= incidentsMenuActive ? 'active' : '' %>">
+      <a href="/incidents" class="nav-parent <%= incidentsMenuActive ? 'active' : '' %>">
+        <span>Incidents</span>
+        <span class="nav-caret">▾</span>
+      </a>
+      <div class="nav-submenu">
+        <a href="<%= assignedToMeHref %>" class="<%= assignedToMeActive ? 'active' : '' %>">Assigned to Me</a>
+        <a href="/incidents?status=in_progress" class="<%= inProgressActive ? 'active' : '' %>">In Progress</a>
+        <a href="/incidents?status=done" class="<%= doneActive ? 'active' : '' %>">Done</a>
+        <a href="/incidents" class="<%= allIncidentsActive ? 'active' : '' %>">All Incidents</a>
+      </div>
+    </div>
+    <a href="/incidents/create" class="nav-cta <%= current === 'incidents-create' ? 'active' : '' %>">+ Create Incident</a>
   </nav>
 </aside>

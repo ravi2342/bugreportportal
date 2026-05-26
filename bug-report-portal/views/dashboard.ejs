@@ -67,6 +67,7 @@
       <div class="navbar" style="background:#fff;padding:18px 32px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:space-between;">
         <span class="app-title">Incident Operations Dashboard</span>
         <div style="display:flex;align-items:center;gap:18px;">
+          <span class="live-status">Live Auto-Refresh On</span>
           <form action="/search" method="get" style="display:inline-flex;align-items:center;gap:4px;">
             <input type="text" name="q" placeholder="Search ticket #" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:120px;font-size:1em;" />
             <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;cursor:pointer;font-weight:500;">Search</button>
@@ -178,5 +179,26 @@
       </div>
     </div>
   </div>
+  <div id="live-toast" class="live-toast">Live update received. Refreshing dashboard...</div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    (function () {
+      if (typeof io === 'undefined') return;
+      const socket = io();
+      const toast = document.getElementById('live-toast');
+      let reloadTimer;
+
+      function triggerRefresh() {
+        if (reloadTimer) return;
+        if (toast) toast.classList.add('visible');
+        reloadTimer = window.setTimeout(() => {
+          window.location.reload();
+        }, 900);
+      }
+
+      socket.on('new-report', triggerRefresh);
+      socket.on('report-updated', triggerRefresh);
+    })();
+  </script>
 </body>
 </html>

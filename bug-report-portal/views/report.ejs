@@ -241,6 +241,8 @@
       background: #f9fafb;
       padding: 16px;
       border-radius: 6px;
+      position: relative;
+      display: inline-block;
     }
     
     .screenshot-container img {
@@ -248,6 +250,29 @@
       height: auto;
       border-radius: 4px;
       border: 1px solid #e2e8f0;
+    }
+
+    .remove-existing-attachment {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      color: #fff;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .remove-existing-attachment:hover {
+      background: rgba(220, 38, 38, 0.9);
     }
     
     .incident-sidebar {
@@ -364,6 +389,166 @@
 
     .comment-form button:hover { background: #0d5d5a; }
 
+    .timeline-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .timeline-filters {
+      display: inline-flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .timeline-filter {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #475569;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .timeline-filter.active {
+      border-color: #0f766e;
+      background: #ecfdf5;
+      color: #0f766e;
+    }
+
+    .timeline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .timeline-item {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .timeline-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .timeline-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      flex: 0 0 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .timeline-badge-comment {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #86efac;
+    }
+
+    .timeline-badge-activity {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border-color: #93c5fd;
+    }
+
+    .timeline-badge-activity svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    .timeline-content {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .timeline-item[data-type="comment"] {
+      border-left: 4px solid #0f766e;
+      background: #f8fffd;
+    }
+
+    .timeline-item[data-type="activity"] {
+      border-left: 4px solid #3b82f6;
+      background: #f8fbff;
+    }
+
+    .timeline-meta {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    .timeline-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    .timeline-text {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .timeline-empty {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .activity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 320px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .activity-item {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f8fafc;
+    }
+
+    .activity-action {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .activity-details {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.5;
+      margin-bottom: 6px;
+      white-space: pre-wrap;
+    }
+
+    .activity-meta {
+      font-size: 11px;
+      color: #64748b;
+    }
+
     .workflow-panel {
       display: none;
       margin-top: 12px;
@@ -465,22 +650,91 @@
       border-top: 1px solid #e2e8f0;
     }
 
-    .attachment-uploader form {
+    .attachment-upload-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .attachment-drop {
+      padding: 12px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: #475569;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .attachment-drop.drag {
+      border-color: #0f766e;
+      background: #f0fdf4;
+      color: #0f766e;
+    }
+
+    .attachment-file-name {
+      font-size: 12px;
+      color: #64748b;
+      min-height: 18px;
+    }
+
+    .attachment-preview {
+      display: none;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .attachment-preview img {
+      width: 120px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #dbe5f1;
+      background: #fff;
+    }
+
+    .attachment-preview-meta {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    .attachment-preview-actions {
+      margin-top: 8px;
+    }
+
+    .remove-selected-file {
+      border: none;
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 999px;
+      width: 28px;
+      height: 28px;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .remove-selected-file:hover {
+      background: #fecaca;
+    }
+
+    .attachment-action-row {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       align-items: center;
     }
 
-    .attachment-uploader input[type="file"] {
-      flex: 1;
-      min-width: 220px;
-      padding: 10px;
-      border: 1px dashed #cbd5e1;
-      border-radius: 6px;
-      background: #fff;
-    }
-    
     @media (max-width: 768px) {
       .incident-content { grid-template-columns: 1fr; }
       .field-group { grid-template-columns: 1fr; }
@@ -590,7 +844,7 @@
             </div>
             <div class="edit-actions">
               <button type="button" class="btn-secondary" onclick="toggleEditForm(false)">Cancel</button>
-              <button type="submit" class="btn-primary">Save Changes</button>
+              <button id="edit-save-btn" type="submit" class="btn-primary">Save Changes</button>
             </div>
           </form>
         </div>
@@ -623,53 +877,115 @@
         </div>
 
         <!-- Screenshot -->
-        <% if (report.screenshot) { %>
-          <div class="section">
-            <div class="section-title">Attachment</div>
+        <div class="section">
+          <div class="section-title">Attachment</div>
+          <% if (report.screenshot) { %>
             <div class="screenshot-container">
               <img src="<%= report.screenshot %>" alt="Incident screenshot" onerror="this.src='/placeholder.png'" />
-            </div>
-            <div class="attachment-uploader">
-              <form method="POST" action="/report/<%= report.id %>/attachment" enctype="multipart/form-data">
-                <input type="file" name="screenshot" accept="image/*" required />
-                <button type="submit" class="btn-primary">Replace Attachment</button>
+              <form method="POST" action="/report/<%= report.id %>/attachment/remove" onsubmit="return confirm('Remove the current attachment?');">
+                <button type="submit" class="remove-existing-attachment" aria-label="Remove current attachment" title="Remove attachment">×</button>
               </form>
             </div>
-          </div>
-        <% } else { %>
-          <div class="section">
-            <div class="section-title">Attachment</div>
+          <% } else { %>
             <div style="color:#64748b;font-size:13px;margin-bottom:12px;">No attachment added yet.</div>
-            <div class="attachment-uploader" style="margin-top:0;padding-top:0;border-top:none;">
-              <form method="POST" action="/report/<%= report.id %>/attachment" enctype="multipart/form-data">
-                <input type="file" name="screenshot" accept="image/*" required />
-                <button type="submit" class="btn-primary">Add Attachment</button>
-              </form>
+          <% } %>
+
+          <div class="attachment-uploader" style="<%= report.screenshot ? '' : 'margin-top:0;padding-top:0;border-top:none;' %>">
+            <form id="attachment-upload-form" class="attachment-upload-form" method="POST" action="/report/<%= report.id %>/attachment" enctype="multipart/form-data" data-has-existing="<%= report.screenshot ? 'true' : 'false' %>">
+              <div id="attachment-drop" class="attachment-drop" role="button" tabindex="0" aria-label="Upload attachment">Click to upload or drag and drop an image</div>
+              <input id="attachment-input" type="file" name="screenshot" accept="image/*" style="display:none" />
+              <div id="attachment-file-name" class="attachment-file-name"></div>
+
+              <div id="attachment-preview" class="attachment-preview" aria-live="polite">
+                <img id="attachment-preview-img" alt="Selected attachment preview" />
+                <div class="attachment-preview-meta">
+                  <div id="attachment-preview-meta"></div>
+                  <div class="attachment-preview-actions">
+                    <button id="remove-selected-file" type="button" class="remove-selected-file" aria-label="Remove selected file" title="Remove selected file">×</button>
+                  </div>
+                </div>
+              </div>
+
+              <% if (!report.screenshot) { %>
+                <div class="attachment-action-row">
+                  <button id="attachment-submit-btn" type="submit" class="btn-primary">Add Attachment</button>
+                </div>
+              <% } %>
+            </form>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="section">
+          <div class="section-title">Conversation & Activity</div>
+          <div class="timeline-toolbar">
+            <div class="timeline-filters" role="tablist" aria-label="Timeline filters">
+              <button type="button" class="timeline-filter active" data-filter="all">All</button>
+              <button type="button" class="timeline-filter" data-filter="comment">Comments</button>
+              <button type="button" class="timeline-filter" data-filter="activity">Activity</button>
             </div>
           </div>
-        <% } %>
 
-        <!-- Comments -->
-        <div class="section">
-          <div class="section-title">Comments</div>
+          <% const timelineEvents = []; %>
           <% if (comments && comments.length) { %>
-            <div class="comments-list">
-              <% comments.slice().reverse().forEach(function(comment) { %>
-                <div class="comment-card">
-                  <div class="comment-meta">
-                    <strong><%= comment.author %></strong> • <%= new Date(comment.createdAt).toLocaleString() %>
+            <% comments.forEach(function(comment) { %>
+              <% timelineEvents.push({
+                type: 'comment',
+                actor: comment.author,
+                createdAt: comment.createdAt,
+                title: 'Comment added',
+                text: comment.text
+              }); %>
+            <% }) %>
+          <% } %>
+          <% if (activities && activities.length) { %>
+            <% activities.forEach(function(activity) { %>
+              <% timelineEvents.push({
+                type: 'activity',
+                actor: activity.actor,
+                createdAt: activity.createdAt,
+                title: activity.action,
+                text: activity.details || ''
+              }); %>
+            <% }) %>
+          <% } %>
+          <% timelineEvents.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); }); %>
+
+          <% if (timelineEvents.length) { %>
+            <div id="timeline-list" class="timeline-list">
+              <% timelineEvents.forEach(function(event) { %>
+                <div class="timeline-item" data-type="<%= event.type %>">
+                  <div class="timeline-row">
+                    <% if (event.type === 'comment') { %>
+                      <span class="timeline-badge timeline-badge-comment" aria-hidden="true"><%= ((event.actor || '?').trim().charAt(0) || '?').toUpperCase() %></span>
+                    <% } else { %>
+                      <span class="timeline-badge timeline-badge-activity" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                      </span>
+                    <% } %>
+                    <div class="timeline-content">
+                      <div class="timeline-meta">
+                        <strong><%= event.actor %></strong> • <%= new Date(event.createdAt).toLocaleString() %>
+                      </div>
+                      <div class="timeline-title"><%= event.title %></div>
+                      <% if (event.text) { %>
+                        <div class="timeline-text"><%= event.text %></div>
+                      <% } %>
+                    </div>
                   </div>
-                  <div class="comment-text"><%= comment.text %></div>
                 </div>
               <% }) %>
             </div>
           <% } else { %>
-            <div style="color:#94a3b8;font-size:13px;margin-bottom:12px;">No comments yet.</div>
+            <div class="timeline-empty">No comments or activity yet.</div>
           <% } %>
 
           <form id="comment-form" class="comment-form" method="POST" action="/report/<%= report.id %>/comments">
             <textarea name="comment" placeholder="Add progress updates, resolution notes, or closing comments" required></textarea>
-            <button type="submit">Add Comment</button>
+            <button id="comment-submit-btn" type="submit">Add Comment</button>
           </form>
         </div>
       </div>
@@ -717,12 +1033,60 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
+  <div id="action-toast" class="live-toast"></div>
 
   <script>
+    const actionToast = document.getElementById('action-toast');
+    let actionToastTimer;
+
+    function showToast(message, type = 'info', duration = 2600) {
+      if (!actionToast) return;
+      actionToast.textContent = message;
+      actionToast.classList.remove('success', 'error', 'warning', 'info', 'visible');
+      actionToast.classList.add(type);
+      window.requestAnimationFrame(() => actionToast.classList.add('visible'));
+      if (actionToastTimer) window.clearTimeout(actionToastTimer);
+      actionToastTimer = window.setTimeout(() => {
+        actionToast.classList.remove('visible');
+      }, duration);
+    }
+
+    function showToastFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const message = params.get('toastMessage');
+      if (!message) return;
+      const type = params.get('toast') || 'info';
+      showToast(message, type, 2600);
+      params.delete('toast');
+      params.delete('toastMessage');
+      const newQuery = params.toString();
+      const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}${window.location.hash || ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+
+    showToastFromQuery();
+
+    (function () {
+      const filters = document.querySelectorAll('.timeline-filter');
+      const items = document.querySelectorAll('.timeline-item');
+      if (!filters.length || !items.length) return;
+
+      function applyFilter(filter) {
+        filters.forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
+        items.forEach(item => {
+          const itemType = item.dataset.type;
+          item.style.display = (filter === 'all' || filter === itemType) ? '' : 'none';
+        });
+      }
+
+      filters.forEach(btn => {
+        btn.addEventListener('click', () => applyFilter(btn.dataset.filter || 'all'));
+      });
+    })();
+
     function toggleEditForm(forceOpen) {
       const form = document.getElementById('edit-form');
       const shouldOpen = forceOpen === undefined ? !form.classList.contains('visible') : !!forceOpen;
@@ -742,15 +1106,19 @@
       if (textarea) textarea.focus();
     }
 
+    let statusUpdateInFlight = false;
     function changeStatus() {
       const select = document.getElementById('status-select');
       const status = select.value;
       if (!status) return;
+      if (statusUpdateInFlight) return;
       if (status === 'VIEW_WORKFLOW') {
         toggleWorkflow();
         select.value = '<%= report.status || "OPEN" %>';
         return;
       }
+      statusUpdateInFlight = true;
+      select.disabled = true;
       
       fetch('/report/<%= report.id %>/status', {
         method: 'POST',
@@ -758,21 +1126,32 @@
         body: JSON.stringify({ status })
       }).then(r => r.json()).then(d => {
         if (d.success) {
-          console.log('✅ Status updated to:', status);
-          location.reload();
+          const params = new URLSearchParams(window.location.search);
+          params.set('toast', 'success');
+          params.set('toastMessage', 'Status updated successfully.');
+          const nextUrl = `${window.location.pathname}?${params.toString()}`;
+          window.location.assign(nextUrl);
         } else {
-          alert('❌ Error: ' + (d.error || 'Failed to update status'));
+          showToast(d.error || 'Failed to update status.', 'error');
           select.value = '<%= report.status || "OPEN" %>';
+          statusUpdateInFlight = false;
+          select.disabled = false;
         }
       }).catch(e => {
-        alert('❌ Error: ' + e.message);
+        showToast(e.message || 'Failed to update status.', 'error');
         select.value = '<%= report.status || "OPEN" %>';
+        statusUpdateInFlight = false;
+        select.disabled = false;
       });
     }
 
+    let assignInFlight = false;
     function assignTo() {
       const select = document.getElementById('assignee-select');
       const assignee = select.value;
+      if (assignInFlight) return;
+      assignInFlight = true;
+      select.disabled = true;
       
       fetch('/report/<%= report.id %>/assign', {
         method: 'POST',
@@ -780,15 +1159,164 @@
         body: JSON.stringify({ assignee })
       }).then(r => r.json()).then(d => {
         if (d.success) {
-          console.log('✅ Assigned to:', assignee || 'Unassigned');
-          location.reload();
+          const params = new URLSearchParams(window.location.search);
+          params.set('toast', 'success');
+          params.set('toastMessage', 'Assignee updated successfully.');
+          const nextUrl = `${window.location.pathname}?${params.toString()}`;
+          window.location.assign(nextUrl);
         } else {
-          alert('❌ Error: ' + (d.error || 'Failed to assign'));
+          showToast(d.error || 'Failed to assign.', 'error');
+          assignInFlight = false;
+          select.disabled = false;
         }
       }).catch(e => {
-        alert('❌ Error: ' + e.message);
+        showToast(e.message || 'Failed to assign.', 'error');
+        assignInFlight = false;
+        select.disabled = false;
       });
     }
+
+    function setLoadingState(button, loadingText) {
+      if (!button) return;
+      if (!button.dataset.defaultLabel) button.dataset.defaultLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = loadingText;
+    }
+
+    (function () {
+      const uploadForm = document.getElementById('attachment-upload-form');
+      const dropZone = document.getElementById('attachment-drop');
+      const fileInput = document.getElementById('attachment-input');
+      const fileName = document.getElementById('attachment-file-name');
+      const preview = document.getElementById('attachment-preview');
+      const previewImg = document.getElementById('attachment-preview-img');
+      const previewMeta = document.getElementById('attachment-preview-meta');
+      const removeSelected = document.getElementById('remove-selected-file');
+      if (!uploadForm || !dropZone || !fileInput || !fileName || !preview || !previewImg || !previewMeta || !removeSelected) return;
+      const hasExistingAttachment = uploadForm.dataset.hasExisting === 'true';
+      const addAttachmentButton = document.getElementById('attachment-submit-btn');
+
+      let activePreviewUrl = null;
+
+      function revokePreviewUrl() {
+        if (activePreviewUrl) {
+          URL.revokeObjectURL(activePreviewUrl);
+          activePreviewUrl = null;
+        }
+      }
+
+      function clearSelection() {
+        revokePreviewUrl();
+        fileInput.value = '';
+        fileName.textContent = '';
+        preview.style.display = 'none';
+        previewImg.removeAttribute('src');
+        previewMeta.textContent = '';
+      }
+
+      function formatFileSize(bytes) {
+        if (!bytes && bytes !== 0) return '';
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function escapeHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function renderPreview(file) {
+        if (!file || !file.type || !file.type.startsWith('image/')) {
+          clearSelection();
+          return;
+        }
+        revokePreviewUrl();
+        activePreviewUrl = URL.createObjectURL(file);
+        previewImg.src = activePreviewUrl;
+        previewMeta.innerHTML = `<strong style="color:#334155">${escapeHtml(file.name)}</strong><br>${formatFileSize(file.size)} • ${escapeHtml(file.type)}`;
+        preview.style.display = 'flex';
+      }
+
+      function openPicker() {
+        fileInput.click();
+      }
+
+      dropZone.addEventListener('click', openPicker);
+      dropZone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openPicker();
+        }
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+          const selected = fileInput.files[0];
+          fileName.textContent = selected.name;
+          renderPreview(selected);
+          if (hasExistingAttachment) uploadForm.submit();
+        } else {
+          clearSelection();
+        }
+      });
+
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag');
+      });
+
+      dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag');
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+          fileInput.files = e.dataTransfer.files;
+          fileName.textContent = file.name;
+          renderPreview(file);
+          if (hasExistingAttachment) uploadForm.submit();
+        }
+      });
+
+      removeSelected.addEventListener('click', clearSelection);
+
+      uploadForm.addEventListener('submit', (e) => {
+        if (!fileInput.files.length) {
+          e.preventDefault();
+          showToast('Please select an image before uploading.', 'warning');
+          return;
+        }
+        if (addAttachmentButton) setLoadingState(addAttachmentButton, 'Uploading...');
+      });
+
+      window.addEventListener('beforeunload', revokePreviewUrl);
+    })();
+
+    (function () {
+      const editForm = document.getElementById('edit-form');
+      const editSaveBtn = document.getElementById('edit-save-btn');
+      if (editForm && editSaveBtn) {
+        editForm.addEventListener('submit', () => setLoadingState(editSaveBtn, 'Saving...'));
+      }
+
+      const commentForm = document.getElementById('comment-form');
+      const commentSubmitBtn = document.getElementById('comment-submit-btn');
+      if (commentForm && commentSubmitBtn) {
+        commentForm.addEventListener('submit', () => setLoadingState(commentSubmitBtn, 'Posting...'));
+      }
+
+      const removeAttachmentForm = document.querySelector('form[action$="/attachment/remove"]');
+      if (removeAttachmentForm) {
+        removeAttachmentForm.addEventListener('submit', (e) => {
+          const trigger = e.submitter;
+          if (trigger) trigger.disabled = true;
+        });
+      }
+    })();
   </script>
 </body>
 </html>
