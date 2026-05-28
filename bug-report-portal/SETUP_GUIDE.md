@@ -38,6 +38,10 @@ Connect to DB in Docker mode:
 docker compose exec db psql -U postgres -d bugreportportal
 ```
 
+Image upload storage in Docker mode:
+- Image files are written under `/app/uploads` in container and persisted in Docker volume `app_uploads`.
+- Database stores image path in `BugReport.screenshot` (example: `/uploads/<file-name>`).
+
 The app will start on **http://localhost:3000**
 
 Use this command to remove containers and data volumes when needed:
@@ -141,6 +145,12 @@ The app will start on **http://localhost:3000**
 psql -U postgres -d bugreportportal
 SELECT * FROM "BugReport";
 \q
+```
+
+To verify uploaded image paths only:
+
+```bash
+psql -U postgres -d bugreportportal -c 'SELECT id, screenshot FROM "BugReport" ORDER BY id DESC LIMIT 10;'
 ```
 
 ## Environment Variables

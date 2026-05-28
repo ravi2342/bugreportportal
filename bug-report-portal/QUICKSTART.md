@@ -47,6 +47,11 @@ How DB is created in Docker:
 docker compose down
 ```
 
+Image upload storage in Docker mode:
+1. Files are stored in container path `/app/uploads`.
+2. Docker maps this to named volume `app_uploads`.
+3. DB stores only file path (column `screenshot`), for example `/uploads/<file-name>`.
+
 If you run `docker compose up -d --build` again, it is usually safe and will update/reuse the same services.
 
 To open PostgreSQL shell while using Docker base profile:
@@ -119,6 +124,10 @@ npm run dev
 
 - http://localhost:3000/login
 - Username/password from .env
+
+Image upload storage in local mode:
+1. Files are stored in [uploads](uploads).
+2. DB stores only file path in `BugReport.screenshot`.
 
 ## Production-Like Docker Profile
 

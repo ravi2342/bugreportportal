@@ -45,6 +45,33 @@ Current workflow rules:
 4. EJS templates in [views](views) render the UI.
 5. Socket.IO notifies clients for live incident updates.
 
+## 3A. Screenshot Upload Flow (Where Images Are Stored)
+
+When a user uploads an image:
+1. Upload request is handled by route logic in [app.js](app.js) using Multer.
+2. Binary file is saved to the uploads folder:
+	1. Local/non-Docker runtime: [uploads](uploads)
+	2. Docker runtime: `/app/uploads` inside container (mounted as volume `app_uploads`)
+3. App stores only the file path string (not binary) in DB field `screenshot` of `BugReport`.
+4. Example stored path value: `/uploads/1779968944443-screenshot.png`
+5. Browser loads image through static route `/uploads/...`.
+
+Persistence behavior:
+1. Local runtime: files stay in [uploads](uploads) on your machine.
+2. Docker runtime: files stay in Docker volume `app_uploads`.
+3. If you run `docker compose down`, data remains.
+4. If you run `docker compose down -v`, DB and uploaded image volume are removed.
+
+Quick verification:
+
+```bash
+# list uploaded files on host (local runtime)
+ls -lah uploads
+
+# check screenshot paths saved in DB
+psql -U postgres -d bugreportportal -c 'SELECT id, screenshot FROM "BugReport" ORDER BY id DESC LIMIT 10;'
+```
+
 ## 4. File-by-File Guide
 
 Core backend:
