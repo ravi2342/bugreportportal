@@ -154,9 +154,7 @@
               <label for="assignee">Assign To</label>
               <select id="assignee" name="assignee">
                 <option value="">— No assignment —</option>
-                <% if (currentUser && currentUser !== 'guest') { %>
-                  <option value="<%= currentUser %>">Assign to me (<%= currentUser %>)</option>
-                <% } %>
+                <option value="<%= currentUser %>">Assign to me (<%= currentUser %>)</option>
                 <option value="support-team">Support Team</option>
                 <option value="dev-team">Development Team</option>
                 <option value="qa-team">QA Team</option>

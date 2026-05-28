@@ -123,6 +123,19 @@ function toStatusLabel(status) {
   return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
 
+function validateDoneTransition({ existingStatus, existingAssignee, nextStatus }) {
+  const current = String(existingStatus || 'OPEN').toUpperCase();
+  const next = String(nextStatus || current).toUpperCase();
+  const assignee = (existingAssignee || '').trim();
+
+  if (!DONE_STATUSES.includes(next)) return null;
+  if (!assignee) return 'Assign the incident before marking it Done.';
+  if (!DONE_STATUSES.includes(current) && current !== 'IN_PROGRESS') {
+    return 'Move the incident to In Progress before marking it Done.';
+  }
+  return null;
+}
+
 function getSlaTargetHours(priority) {
   switch ((priority || '').toLowerCase()) {
     case 'critical': return 4;
@@ -319,7 +332,7 @@ app.get('/incidents', async (req, res) => {
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
   let filteredReports = reports;
-  if (filter === 'myIncidents' && isAuthenticatedUser(currentUser)) {
+  if (filter === 'myIncidents') {
     filteredReports = reports.filter(r => r.reporter === currentUser);
   } else if (filter === 'assigned') {
     filteredReports = reports.filter(r => r.assignee && r.assignee.trim() !== '');
@@ -528,6 +541,25 @@ app.post('/report/:id/update', async (req, res) => {
   try {
     const prisma = getPrisma();
     const existing = await prisma.bugReport.findUnique({ where: { id } });
+    if (!existing) return res.status(404).send('Incident not found');
+
+    const nextStatus = data.status !== undefined ? String(data.status).toUpperCase() : String(existing.status || 'OPEN').toUpperCase();
+    const existingStatus = String(existing.status || 'OPEN').toUpperCase();
+    const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (existing.assignee || null);
+
+    if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+      return res.redirect(withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.'));
+    }
+
+    const doneValidationError = validateDoneTransition({
+      existingStatus,
+      existingAssignee: effectiveAssignee,
+      nextStatus
+    });
+    if (doneValidationError) {
+      return res.redirect(withToast(`/report/${id}`, 'warning', doneValidationError));
+    }
+
     const updated = await prisma.bugReport.update({
       where: { id },
       data
@@ -558,13 +590,30 @@ app.post('/report/:id/update', async (req, res) => {
       const reports = readFallbackReports();
       const idx = reports.findIndex(r => r.id === id);
       if (idx !== -1) {
+        const existingStatus = String(reports[idx].status || 'OPEN').toUpperCase();
+        const nextStatus = data.status !== undefined ? String(data.status).toUpperCase() : existingStatus;
+        const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (reports[idx].assignee || null);
+
+        if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+          return res.redirect(withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.'));
+        }
+
+        const doneValidationError = validateDoneTransition({
+          existingStatus,
+          existingAssignee: effectiveAssignee,
+          nextStatus
+        });
+        if (doneValidationError) {
+          return res.redirect(withToast(`/report/${id}`, 'warning', doneValidationError));
+        }
+
         if (data.title !== undefined) reports[idx].title = data.title;
         if (data.description !== undefined) reports[idx].description = data.description;
         if (data.priority !== undefined) reports[idx].priority = data.priority;
         if (data.assignee !== undefined) reports[idx].assignee = data.assignee;
         if (data.status !== undefined) {
           reports[idx].status = data.status;
-          if (['DONE', 'RESOLVED', 'CLOSED'].includes(data.status)) {
+          if (DONE_STATUSES.includes(String(data.status).toUpperCase())) {
             reports[idx].resolvedAt = new Date().toISOString();
           }
         }
@@ -664,11 +713,19 @@ app.post('/report/:id/status', async (req, res) => {
   if (Number.isNaN(id) || !status) return res.status(400).json({ error: 'Invalid request' });
   try {
     const prisma = getPrisma();
-    const existing = await prisma.bugReport.findUnique({ where: { id }, select: { status: true } });
+    const existing = await prisma.bugReport.findUnique({ where: { id }, select: { status: true, assignee: true } });
     const existingStatus = (existing?.status || 'OPEN').toUpperCase();
     const nextStatus = String(status).toUpperCase();
     if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
       return res.status(400).json({ error: 'Closed incidents cannot be reopened.' });
+    }
+    const doneValidationError = validateDoneTransition({
+      existingStatus,
+      existingAssignee: existing?.assignee || null,
+      nextStatus
+    });
+    if (doneValidationError) {
+      return res.status(400).json({ error: doneValidationError });
     }
     const updated = await prisma.bugReport.update({
       where: { id },
@@ -693,6 +750,14 @@ app.post('/report/:id/status', async (req, res) => {
         const nextStatus = String(status).toUpperCase();
         if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
           return res.status(400).json({ error: 'Closed incidents cannot be reopened.' });
+        }
+        const doneValidationError = validateDoneTransition({
+          existingStatus,
+          existingAssignee: reports[idx].assignee || null,
+          nextStatus
+        });
+        if (doneValidationError) {
+          return res.status(400).json({ error: doneValidationError });
         }
         reports[idx].status = status;
         if (DONE_STATUSES.includes(nextStatus)) reports[idx].resolvedAt = new Date().toISOString();

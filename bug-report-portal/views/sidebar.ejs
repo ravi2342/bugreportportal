@@ -10,14 +10,12 @@
   </div>
   <% 
     const incidentsMenuActive = current === 'incidents';
-    const assignedToMeActive = incidentsMenuActive && currentUser && currentUser !== 'guest' && assignee === currentUser;
+    const assignedToMeActive = incidentsMenuActive && assignee === currentUser;
     const newIncidentsActive = incidentsMenuActive && (status || '').toLowerCase() === 'open';
     const inProgressActive = incidentsMenuActive && (status || '').toLowerCase() === 'in_progress';
     const doneActive = incidentsMenuActive && (status || '').toLowerCase() === 'done';
     const allIncidentsActive = incidentsMenuActive && !filter && !status && !assignee;
-    const assignedToMeHref = currentUser && currentUser !== 'guest'
-      ? `/incidents?assignee=${encodeURIComponent(currentUser)}`
-      : '/incidents?filter=assigned';
+    const assignedToMeHref = `/incidents?assignee=${encodeURIComponent(currentUser)}`;
   %>
   <nav>
     <a href="/dashboard" class="<%= current === 'dashboard' ? 'active' : '' %>">Dashboard</a>
