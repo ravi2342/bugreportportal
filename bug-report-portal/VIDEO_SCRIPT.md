@@ -2,6 +2,21 @@
 
 Use this script for a clean 8 to 12 minute demo.
 
+## 0. Pre-Demo Checklist (30 seconds)
+
+Run:
+
+```bash
+cd bug-report-portal
+docker compose ps
+```
+
+Talk track:
+
+- I run one app mode at a time on port 3000.
+- If Docker mode is active, I do not run local npm dev server.
+- Credentials depend on environment source: `.env` for local npm, `.env.docker` for production compose profile.
+
 ## 1. Intro (30 seconds)
 
 Talk track:
@@ -118,6 +133,12 @@ Run:
 
 ```bash
 psql -U postgres -d bugreportportal -c 'SELECT id, title, status, assignee FROM "BugReport" ORDER BY id DESC LIMIT 5;'
+```
+
+If using production compose profile where DB port is not exposed, run instead:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db psql -U postgres -d bugreportportal -c 'SELECT id, title, status, assignee FROM "BugReport" ORDER BY id DESC LIMIT 5;'
 ```
 
 Talk track:

@@ -2,6 +2,18 @@
 
 This is the shortest path to run the project.
 
+## Pre-Run Checklist
+
+1. Open terminal in project folder:
+
+```bash
+cd bug-report-portal
+```
+
+2. For Docker paths: Docker Desktop must be running.
+3. For non-Docker path: local PostgreSQL must be running.
+4. Do not run local `npm run dev` and Docker app container at the same time on port 3000.
+
 ## Option A: Fastest (Docker)
 
 1. Go to project folder.
@@ -16,6 +28,10 @@ cd bug-report-portal
 docker compose up -d --build
 ```
 
+How DB is created in Docker:
+1. Postgres container auto-creates `bugreportportal` from compose env (`POSTGRES_DB`) on first run with empty volume.
+2. App container then runs Prisma migrations to create tables.
+
 3. Open the app.
 
 - http://localhost:3000/login
@@ -29,6 +45,32 @@ docker compose up -d --build
 
 ```bash
 docker compose down
+```
+
+If you run `docker compose up -d --build` again, it is usually safe and will update/reuse the same services.
+
+To open PostgreSQL shell while using Docker base profile:
+
+```bash
+docker compose exec db psql -U postgres -d bugreportportal
+```
+
+Optional demo data seed in Docker base profile:
+
+```bash
+docker compose exec app npm run seed:demo
+```
+
+If it fails due to ports already in use:
+
+```bash
+docker compose down
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+lsof -nP -iTCP:5432 -sTCP:LISTEN
+kill -15 <PID>
+# if needed, force stop
+kill -9 <PID>
+docker compose up -d --build
 ```
 
 ## Option B: Local Node + Local PostgreSQL
@@ -94,6 +136,8 @@ cp .env.docker.example .env.docker
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
+DB creation in production profile follows the same rule: first run with empty volume creates DB, then migrations create tables.
+
 4. Verify.
 
 ```bash
@@ -107,3 +151,16 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 ```
 
 Note: In production profile, login credentials are read from .env.docker.
+Running the same prod start command again is also safe for the same compose project.
+
+To open PostgreSQL shell in production profile:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db psql -U postgres -d bugreportportal
+```
+
+Optional demo data seed in production profile:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app npm run seed:demo
+```

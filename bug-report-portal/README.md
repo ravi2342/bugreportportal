@@ -103,6 +103,23 @@ cp .env.docker.example .env.docker
 
 Then edit .env.docker with secure values.
 
+## 5A. Prerequisites Checklist
+
+Before running any command, confirm:
+1. You are inside project directory:
+
+```bash
+cd bug-report-portal
+```
+
+2. Docker route:
+	1. Docker Desktop is running.
+	2. `docker compose version` works.
+3. Non-Docker route:
+	1. Node.js 20+ and npm are installed.
+	2. Local PostgreSQL service is running.
+4. Run only one app runtime at a time on port 3000 (either Docker app container or local `npm run dev`).
+
 ## 6. Local Run (Node + Local PostgreSQL)
 
 Use this path when running directly with npm.
@@ -188,6 +205,12 @@ Defaults in base profile:
 1. Username: admin
 2. Password: admin123
 
+Optional demo data seed in Docker mode:
+
+```bash
+docker compose exec app npm run seed:demo
+```
+
 Useful commands:
 
 ```bash
@@ -195,6 +218,70 @@ docker compose ps
 docker compose logs -f app
 docker compose down
 docker compose down -v
+```
+
+### How Database Gets Created in Docker
+
+1. The PostgreSQL container uses environment variables from [docker-compose.yml](docker-compose.yml):
+	1. `POSTGRES_DB=bugreportportal`
+	2. `POSTGRES_USER=postgres`
+	3. `POSTGRES_PASSWORD=postgres`
+2. On first startup (when the Postgres data volume is empty), the official Postgres image automatically creates the `bugreportportal` database.
+3. App startup then runs Prisma migrations from [Dockerfile](Dockerfile):
+	1. `npx prisma migrate deploy`
+4. Result:
+	1. Database is created by Postgres container initialization.
+	2. Tables are created by Prisma migrations.
+
+Important behavior:
+1. DB creation runs only the first time for a fresh Postgres volume.
+2. If you run `docker compose up` again, it reuses existing DB data.
+3. To recreate database from scratch, remove volumes:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+### If You Run `docker compose up -d --build` Again
+
+1. It normally does not fail.
+2. Docker Compose is idempotent for the same project and compose file.
+3. It will reuse or recreate only what changed, and keep services on the same ports.
+
+It can fail when ports are already used by something else, for example:
+1. Another app using port 3000.
+2. Another Postgres process using port 5432.
+
+Quick recovery steps:
+
+```bash
+docker compose ps
+docker compose down
+docker compose up -d --build
+```
+
+If ports are still busy, check and stop host processes:
+
+```bash
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+lsof -nP -iTCP:5432 -sTCP:LISTEN
+```
+
+Stop the process by PID (replace `<PID>` with the value from lsof output):
+
+```bash
+# graceful stop (recommended first)
+kill -15 <PID>
+
+# force stop only if the process does not exit
+kill -9 <PID>
+```
+
+Then start compose again:
+
+```bash
+docker compose up -d --build
 ```
 
 ## 8. Production Run (Docker Production Profile)
@@ -241,6 +328,14 @@ Access:
 
 Important:
 1. Login credentials in this mode come from .env.docker, not .env.
+2. Running the same prod command again is safe; Compose reconciles existing services.
+3. Database creation behavior is the same as base profile: Postgres creates DB on first empty volume init, then Prisma migrations create tables.
+
+Optional demo data seed in production profile:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app npm run seed:demo
+```
 
 ## 9. Useful PostgreSQL Queries for Demo and Validation
 
@@ -248,6 +343,26 @@ Connect:
 
 ```bash
 psql -U postgres -d bugreportportal
+```
+
+When using Docker base profile, you can also connect from host because 5432 is published:
+
+```bash
+psql -h localhost -U postgres -d bugreportportal
+```
+
+When app is running with Docker Compose, connect to PostgreSQL inside the DB container:
+
+Base profile:
+
+```bash
+docker compose exec db psql -U postgres -d bugreportportal
+```
+
+Production profile:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db psql -U postgres -d bugreportportal
 ```
 
 Run:

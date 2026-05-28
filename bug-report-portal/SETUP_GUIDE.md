@@ -3,7 +3,10 @@
 ## Prerequisites
 - PostgreSQL installed via Homebrew
 - Node.js and npm installed
+- Docker Desktop installed (for Docker setup paths)
 - This repository cloned
+
+Use [README.md](README.md) as the primary source for complete setup + troubleshooting. This guide is a quick companion.
 
 ## Quick Start
 
@@ -23,6 +26,16 @@ docker compose logs -f app
 
 # Stop everything
 docker compose down
+```
+
+How DB gets created in Docker:
+- Postgres container creates `bugreportportal` from `POSTGRES_DB` on first run with empty volume.
+- App container runs `npx prisma migrate deploy` during startup to create/update tables.
+
+Connect to DB in Docker mode:
+
+```bash
+docker compose exec db psql -U postgres -d bugreportportal
 ```
 
 The app will start on **http://localhost:3000**
@@ -50,6 +63,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
 # Stop production stack
 docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+```
+
+Connect to DB in production profile:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db psql -U postgres -d bugreportportal
 ```
 
 Production override changes:
