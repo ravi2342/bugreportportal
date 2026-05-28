@@ -52,6 +52,13 @@ Image upload storage in Docker mode:
 2. Docker maps this to named volume `app_uploads`.
 3. DB stores only file path (column `screenshot`), for example `/uploads/<file-name>`.
 
+Verify uploaded images in Docker mode:
+
+```bash
+docker compose exec app ls -lah /app/uploads
+docker compose exec db psql -U postgres -d bugreportportal -c 'SELECT id, title, screenshot FROM "BugReport" WHERE screenshot IS NOT NULL ORDER BY id DESC LIMIT 10;'
+```
+
 If you run `docker compose up -d --build` again, it is usually safe and will update/reuse the same services.
 
 To open PostgreSQL shell while using Docker base profile:
@@ -128,6 +135,13 @@ npm run dev
 Image upload storage in local mode:
 1. Files are stored in [uploads](uploads).
 2. DB stores only file path in `BugReport.screenshot`.
+
+Verify uploaded images in local mode:
+
+```bash
+ls -lah uploads
+psql -U postgres -d bugreportportal -c 'SELECT id, title, screenshot FROM "BugReport" WHERE screenshot IS NOT NULL ORDER BY id DESC LIMIT 10;'
+```
 
 ## Production-Like Docker Profile
 

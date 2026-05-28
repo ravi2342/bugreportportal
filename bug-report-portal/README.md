@@ -70,6 +70,12 @@ ls -lah uploads
 
 # check screenshot paths saved in DB
 psql -U postgres -d bugreportportal -c 'SELECT id, screenshot FROM "BugReport" ORDER BY id DESC LIMIT 10;'
+
+# list uploaded files in Docker app container
+docker compose exec app ls -lah /app/uploads
+
+# check screenshot paths saved in Docker DB container
+docker compose exec db psql -U postgres -d bugreportportal -c 'SELECT id, title, screenshot FROM "BugReport" WHERE screenshot IS NOT NULL ORDER BY id DESC LIMIT 10;'
 ```
 
 ## 4. File-by-File Guide

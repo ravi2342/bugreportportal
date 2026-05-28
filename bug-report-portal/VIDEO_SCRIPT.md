@@ -79,11 +79,17 @@ Actions:
 2. Enter title, description, priority, assignee.
 3. Submit.
 4. Open incident details.
+5. Run a quick upload verification command:
+
+```bash
+docker compose exec app ls -lah /app/uploads
+```
 
 Talk track:
 
 - Incident captures core fields and optional screenshot.
 - New incident appears in list and dashboard metrics.
+- Uploaded image binary is stored in `/app/uploads`, while DB stores only the path.
 
 ## 6. Comments, Assignment, Status Rules (2 minutes)
 

@@ -42,6 +42,13 @@ Image upload storage in Docker mode:
 - Image files are written under `/app/uploads` in container and persisted in Docker volume `app_uploads`.
 - Database stores image path in `BugReport.screenshot` (example: `/uploads/<file-name>`).
 
+Verify uploaded files + DB metadata in Docker mode:
+
+```bash
+docker compose exec app ls -lah /app/uploads
+docker compose exec db psql -U postgres -d bugreportportal -c 'SELECT id, title, screenshot FROM "BugReport" WHERE screenshot IS NOT NULL ORDER BY id DESC LIMIT 10;'
+```
+
 The app will start on **http://localhost:3000**
 
 Use this command to remove containers and data volumes when needed:
