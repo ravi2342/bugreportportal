@@ -47,6 +47,17 @@ How DB is created in Docker:
 docker compose down
 ```
 
+Keep vs wipe data:
+1. `docker compose down` keeps incidents/screenshots.
+2. `docker compose down -v` wipes incidents/screenshots (removes volumes).
+
+For final demo recording:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
 Image upload storage in Docker mode:
 1. Files are stored in container path `/app/uploads`.
 2. Docker maps this to named volume `app_uploads`.

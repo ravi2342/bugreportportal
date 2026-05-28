@@ -56,6 +56,17 @@ Use this command to remove containers and data volumes when needed:
 docker compose down -v
 ```
 
+Data retention note:
+- `docker compose down` keeps DB and uploaded images.
+- `docker compose down -v` wipes DB and uploaded images (fresh start).
+
+For a clean demo recording, run:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
 ### Production Compose Profile
 ```bash
 cd bug-report-portal

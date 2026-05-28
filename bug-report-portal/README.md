@@ -253,6 +253,22 @@ docker compose down
 docker compose down -v
 ```
 
+### Data Retention: `down` vs `down -v`
+
+Use these based on your goal:
+1. `docker compose down`
+	1. Stops and removes containers only.
+	2. Keeps volumes (`pgdata`, `app_uploads`).
+	3. Incidents and uploaded screenshots remain.
+2. `docker compose down -v`
+	1. Stops/removes containers and removes volumes.
+	2. Incidents and uploaded screenshots are wiped.
+
+Recommended for demo videos:
+1. For rehearsal: use `docker compose down` to keep your test incidents.
+2. For final recording: use `docker compose down -v`, then `docker compose up -d --build` to start from a clean state.
+3. Create fresh incidents live during recording for a clear end-to-end story.
+
 ### How Database Gets Created in Docker
 
 1. The PostgreSQL container uses environment variables from [docker-compose.yml](docker-compose.yml):
@@ -451,6 +467,13 @@ Mutation routes:
 ## 11. Video Demo Script (Recommended)
 
 Use this exact flow for a smooth audience demo.
+
+Before recording, reset to clean state:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
 
 1. Open login page and sign in.
 2. Show dashboard KPIs.

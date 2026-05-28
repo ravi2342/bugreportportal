@@ -17,6 +17,13 @@ Talk track:
 - If Docker mode is active, I do not run local npm dev server.
 - Credentials depend on environment source: `.env` for local npm, `.env.docker` for production compose profile.
 
+If you want a fresh recording state, run:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
 ## 1. Intro (30 seconds)
 
 Talk track:
