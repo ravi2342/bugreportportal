@@ -32,6 +32,31 @@ Use this command to remove containers and data volumes when needed:
 docker compose down -v
 ```
 
+### Production Compose Profile
+```bash
+cd bug-report-portal
+
+# Create production env file once
+cp .env.docker.example .env.docker
+
+# Edit secrets before running in production
+# PORTAL_LOGIN_PASSWORD should be changed
+
+# Start with production overrides
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# Check running services
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+# Stop production stack
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+```
+
+Production override changes:
+- Database port is not published to host
+- App credentials are loaded from `.env.docker`
+- Restart policy is set to `always`
+
 ### 1. Start PostgreSQL
 ```bash
 # Check PostgreSQL status
