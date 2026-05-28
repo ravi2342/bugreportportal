@@ -179,6 +179,11 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bugreportportal"
 PORT=3000
 ```
 
+Authentication cookies:
+- App uses a signed cookie (`currentUser`) for login sessions.
+- You can set `AUTH_COOKIE_SECRET` in `.env` to customize cookie signing.
+- If dashboard appears already logged in, clear localhost cookies or use Incognito for a first-login test.
+
 **Update DATABASE_URL if you used a different PostgreSQL password.**
 
 ## Troubleshooting

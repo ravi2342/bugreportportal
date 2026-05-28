@@ -2,6 +2,11 @@
 
 This is the shortest path to run the project.
 
+Auth cookie note:
+1. App uses signed login cookie (`currentUser`) for protected pages.
+2. Set `AUTH_COOKIE_SECRET` in env for a custom signing secret.
+3. For first-time auth tests, use Incognito/private window or clear localhost cookies.
+
 ## Pre-Run Checklist
 
 1. Open terminal in project folder:

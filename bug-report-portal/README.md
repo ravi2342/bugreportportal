@@ -118,6 +118,7 @@ Required values:
 2. PORT (optional, default 3000)
 3. PORTAL_LOGIN_USERNAME
 4. PORTAL_LOGIN_PASSWORD
+5. AUTH_COOKIE_SECRET (recommended; used to sign login cookie)
 
 Local example (.env):
 
@@ -135,6 +136,12 @@ cp .env.docker.example .env.docker
 ```
 
 Then edit .env.docker with secure values.
+
+Auth cookie behavior:
+1. Login sets a signed cookie named `currentUser`.
+2. Protected routes (for example `/dashboard`) require a valid signed cookie.
+3. Cookie is set with `httpOnly` and `sameSite=lax`.
+4. Set `AUTH_COOKIE_SECRET` in env for non-default signing secret.
 
 ## 5A. Prerequisites Checklist
 
@@ -492,6 +499,11 @@ Login fails:
 1. Check active runtime profile.
 2. If local npm run, credentials are from .env.
 3. If production compose profile, credentials are from .env.docker.
+
+Dashboard opens without login unexpectedly:
+1. Most likely browser already has a valid login cookie.
+2. Test in Incognito/private window or clear cookies for localhost.
+3. After cookie clear, opening `/dashboard` should redirect to `/login`.
 
 Port 3000 already in use:
 1. Stop old process/container.
