@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bug-report-portal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bugreportportal
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bugreportportal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bug-report-portal-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/bugreportportal
+      PORT: 3000
+      PRISMA_CLIENT_ENGINE_TYPE: binary
+      PORTAL_LOGIN_USERNAME: ${PORTAL_LOGIN_USERNAME:-admin}
+      PORTAL_LOGIN_PASSWORD: ${PORTAL_LOGIN_PASSWORD:-admin123}
+    ports:
+      - "3000:3000"
+    volumes:
+      - app_uploads:/app/uploads
+
+volumes:
+  pgdata:
+  app_uploads:

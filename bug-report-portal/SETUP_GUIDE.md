@@ -7,6 +7,31 @@
 
 ## Quick Start
 
+### Docker Quick Start (Recommended)
+```bash
+cd bug-report-portal
+
+# Optional: override demo login credentials for containers
+export PORTAL_LOGIN_USERNAME=admin
+export PORTAL_LOGIN_PASSWORD=admin123
+
+# Build and start app + postgres
+docker compose up -d --build
+
+# View logs
+docker compose logs -f app
+
+# Stop everything
+docker compose down
+```
+
+The app will start on **http://localhost:3000**
+
+Use this command to remove containers and data volumes when needed:
+```bash
+docker compose down -v
+```
+
 ### 1. Start PostgreSQL
 ```bash
 # Check PostgreSQL status
