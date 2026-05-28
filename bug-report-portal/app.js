@@ -12,6 +12,7 @@ const PORTAL_LOGIN_USERNAME = (process.env.PORTAL_LOGIN_USERNAME || '').trim();
 const PORTAL_LOGIN_PASSWORD = process.env.PORTAL_LOGIN_PASSWORD || '';
 const IS_DEMO_AUTH_CONFIGURED = Boolean(PORTAL_LOGIN_USERNAME && PORTAL_LOGIN_PASSWORD);
 const AUTH_COOKIE_NAME = 'currentUser';
+const AUTH_COOKIE_SECRET = (process.env.AUTH_COOKIE_SECRET || 'dev-auth-cookie-secret-change-me').trim();
 const DONE_STATUSES = ['DONE', 'RESOLVED', 'CLOSED'];
 
 function isAuthenticatedUser(user) {
@@ -38,13 +39,13 @@ app.locals.appName = 'OpsCenter';
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(cookieParser());
+app.use(cookieParser(AUTH_COOKIE_SECRET));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // middleware to extract current user from cookie
 app.use((req, res, next) => {
-  req.currentUser = req.cookies[AUTH_COOKIE_NAME] || 'guest';
+  req.currentUser = req.signedCookies[AUTH_COOKIE_NAME] || 'guest';
   res.locals.currentUser = req.currentUser;
   next();
 });
@@ -249,11 +250,17 @@ app.post('/login', (req, res) => {
     });
   }
 
-  res.cookie(AUTH_COOKIE_NAME, username, { maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie(AUTH_COOKIE_NAME, username, {
+    signed: true,
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
   return res.redirect('/dashboard');
 });
 
 app.post('/logout', (req, res) => {
+  res.clearCookie(AUTH_COOKIE_NAME, { signed: true });
   res.clearCookie(AUTH_COOKIE_NAME);
   return res.redirect('/login');
 });
