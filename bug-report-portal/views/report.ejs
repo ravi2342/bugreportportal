@@ -752,6 +752,8 @@
       <span class="status-badge status-<%= (report.status || 'OPEN').replace(/\s+/g, '_') %>">
         <% if (['DONE', 'RESOLVED', 'CLOSED'].includes(report.status)) { %>
           Done
+        <% } else if ((report.status || 'OPEN').toUpperCase() === 'OPEN') { %>
+          New
         <% } else { %>
           <%= (report.status || 'OPEN').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) %>
         <% } %>
@@ -786,12 +788,16 @@
                 <% 
                   let currentStatus = report.status || 'OPEN';
                   let currentStatusDisplay = currentStatus.replace(/_/g, ' ');
-                  if (['DONE', 'RESOLVED', 'CLOSED'].includes(currentStatus)) {
+                  if (currentStatus === 'OPEN') {
+                    currentStatusDisplay = 'New';
+                  } else if (['DONE', 'RESOLVED', 'CLOSED'].includes(currentStatus)) {
                     currentStatusDisplay = 'Done';
                   }
                 %>
                 <option value="<%= currentStatus %>" selected><%= currentStatusDisplay %></option>
-                <option value="IN_PROGRESS">In Progress</option>
+                <% if (!['DONE', 'RESOLVED', 'CLOSED'].includes(currentStatus)) { %>
+                  <option value="IN_PROGRESS">In Progress</option>
+                <% } %>
                 <option value="DONE">Done</option>
                 <option value="VIEW_WORKFLOW">View Workflow</option>
               </select>
@@ -803,8 +809,8 @@
             <% const workflowStep = workflowStatus === 'IN_PROGRESS' ? 2 : ((['DONE', 'RESOLVED', 'CLOSED'].includes(workflowStatus)) ? 3 : 1); %>
             <div class="workflow-graph">
               <div class="workflow-node <%= workflowStep > 1 ? 'done' : (workflowStep === 1 ? 'active' : '') %>">
-                <div class="workflow-pill open">Open</div>
-                <div class="workflow-node-name">Open</div>
+                <div class="workflow-pill open">New</div>
+                <div class="workflow-node-name">New</div>
                 <div class="workflow-node-meta">Raised and ready for triage</div>
               </div>
               <div class="workflow-arrow">→</div>
@@ -998,7 +1004,7 @@
             <div class="field-label">Assignee</div>
             <select id="assignee-select" class="assign-select" onchange="assignTo()">
               <option value="">— Unassigned —</option>
-              <option value="<%= currentUser %>" <% if (report.assignee === currentUser) { %>selected<% } %>><%= currentUser %></option>
+              <option value="<%= currentUser %>" <% if (report.assignee === currentUser) { %>selected<% } %>>Assigned to Me</option>
               <option value="support-team" <% if (report.assignee === 'support-team') { %>selected<% } %>>Support Team</option>
               <option value="dev-team" <% if (report.assignee === 'dev-team') { %>selected<% } %>>Dev Team</option>
               <option value="qa-team" <% if (report.assignee === 'qa-team') { %>selected<% } %>>QA Team</option>
@@ -1008,11 +1014,37 @@
             <div class="field-label">Reporter</div>
             <div class="field-value">
               <% if (report.reporter && report.reporter !== 'guest' && report.reporter !== 'anonymous') { %>
-                <%= report.reporter %>
+                <% if (report.reporter === currentUser) { %>
+                  <%= currentUser %>
+                <% } else { %>
+                  Portal User
+                <% } %>
               <% } else { %>
                 <em style="color: #94a3b8;">Anonymous</em>
               <% } %>
             </div>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">SLA</div>
+          <div class="field" style="margin-bottom: 10px;">
+            <div class="field-label">Target</div>
+            <div class="field-value">
+              <% if (sla && sla.targetHours) { %>
+                <%= sla.targetHours %> hours
+              <% } else { %>
+                <em style="color: #94a3b8;">—</em>
+              <% } %>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom: 10px;">
+            <div class="field-label">SLA Status</div>
+            <div class="field-value"><%= (sla && sla.state) || 'Unknown' %></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Details</div>
+            <div class="field-value"><%= (sla && sla.detail) || 'Not available' %></div>
           </div>
         </div>
 

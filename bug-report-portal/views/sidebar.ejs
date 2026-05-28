@@ -11,6 +11,7 @@
   <% 
     const incidentsMenuActive = current === 'incidents';
     const assignedToMeActive = incidentsMenuActive && currentUser && currentUser !== 'guest' && assignee === currentUser;
+    const newIncidentsActive = incidentsMenuActive && (status || '').toLowerCase() === 'open';
     const inProgressActive = incidentsMenuActive && (status || '').toLowerCase() === 'in_progress';
     const doneActive = incidentsMenuActive && (status || '').toLowerCase() === 'done';
     const allIncidentsActive = incidentsMenuActive && !filter && !status && !assignee;
@@ -27,6 +28,7 @@
       </a>
       <div class="nav-submenu">
         <a href="<%= assignedToMeHref %>" class="<%= assignedToMeActive ? 'active' : '' %>">Assigned to Me</a>
+        <a href="/incidents?status=open" class="<%= newIncidentsActive ? 'active' : '' %>">New Incidents</a>
         <a href="/incidents?status=in_progress" class="<%= inProgressActive ? 'active' : '' %>">In Progress</a>
         <a href="/incidents?status=done" class="<%= doneActive ? 'active' : '' %>">Done</a>
         <a href="/incidents" class="<%= allIncidentsActive ? 'active' : '' %>">All Incidents</a>

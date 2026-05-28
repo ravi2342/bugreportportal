@@ -62,23 +62,26 @@
 </head>
 <body>
   <div class="layout" style="display:flex;min-height:100vh;">
-    <%- include('sidebar', { appName, current: 'dashboard' }) %>
+    <%- include('sidebar', { appName, current: 'dashboard', currentUser }) %>
     <div class="main-content" style="flex:1;display:flex;flex-direction:column;min-height:100vh;background:#f5f7fb;">
       <div class="navbar" style="background:#fff;padding:18px 32px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:space-between;">
         <span class="app-title">Incident Operations Dashboard</span>
         <div style="display:flex;align-items:center;gap:18px;">
           <span class="live-status">Live Auto-Refresh On</span>
           <form action="/search" method="get" style="display:inline-flex;align-items:center;gap:4px;">
-            <input type="text" name="q" placeholder="Search ticket #" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:120px;font-size:1em;" />
+            <input type="text" name="q" value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>" placeholder="Ticket ID or keyword" title="Search by ticket number (e.g. 8 or #8) or text" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:180px;font-size:1em;" />
             <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;cursor:pointer;font-weight:500;">Search</button>
           </form>
-          <span style="color:#64748b;font-size:1em;">Welcome<% if (currentUser && currentUser !== 'guest') { %>, <%= currentUser %><% } %></span>
+          <span style="color:#64748b;font-size:1em;">Welcome, <%= currentUser %></span>
+          <form action="/logout" method="POST" style="display:inline;">
+            <button type="submit" style="padding:6px 10px;border-radius:6px;background:#ffffff;color:#0f766e;border:1px solid #0f766e;cursor:pointer;font-weight:600;">Logout</button>
+          </form>
         </div>
       </div>
       <div style="padding: 32px;">
         <div class="dashboard-kpis">
           <div class="kpi-card" onclick="window.location='/incidents?status=open'">
-            <div class="kpi-label">Open Incidents</div>
+            <div class="kpi-label">New Incidents</div>
             <div class="kpi-value"><%= kpiOpen || 0 %></div>
           </div>
           <div class="kpi-card" onclick="window.location='/incidents?status=in_progress'">
@@ -115,7 +118,7 @@
           const statusChart = new Chart(statusCtx, {
             type: 'doughnut',
             data: {
-              labels: ['Open', 'In Progress', 'Done'],
+              labels: ['New', 'In Progress', 'Done'],
               datasets: [{
                 data: [<%= kpiOpen %>, <%= kpiInProgress || 0 %>, <%= kpiDone || 0 %>],
                 backgroundColor: ['#ffc107', '#0275d8', '#28a745'],

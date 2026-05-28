@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= appName %> - Login</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top right, #dbeafe 0%, #f8fafc 35%, #ecfdf5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 20px 55px rgba(15, 23, 42, 0.12);
+      padding: 32px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .brand img {
+      width: 32px;
+      height: 32px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 20px;
+      color: #0f172a;
+    }
+
+    .subtitle {
+      margin: 0 0 20px 0;
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .demo-note {
+      margin: -8px 0 18px 0;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.4;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+
+    .field input {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 11px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .field input:focus {
+      border-color: #0f766e;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+    }
+
+    .error {
+      margin-bottom: 12px;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .actions {
+      margin-top: 18px;
+    }
+
+    .actions button {
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #0f766e;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .actions button:hover {
+      background: #0d5d5a;
+    }
+  </style>
+</head>
+<body>
+  <main class="login-card">
+    <div class="brand">
+      <img src="/favicon.svg" alt="logo" />
+      <h1><%= appName %></h1>
+    </div>
+    <p class="subtitle">Sign in with your username and password to access the incident portal.</p>
+    <p class="demo-note">Demo authentication (env-based). For production, integrate enterprise SSO/AD.</p>
+
+    <% if (error) { %>
+      <div class="error"><%= error %></div>
+    <% } %>
+
+    <form method="POST" action="/login">
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" value="<%= username || '' %>" placeholder="Enter your username" required maxlength="40" autofocus />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="Enter your password" required />
+      </div>
+      <div class="actions">
+        <button type="submit">Login</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>

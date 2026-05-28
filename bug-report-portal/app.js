@@ -8,6 +8,16 @@ const { Server: IOServer } = require('socket.io');
 const cookieParser = require('cookie-parser');
 const app = express();
 
+const PORTAL_LOGIN_USERNAME = (process.env.PORTAL_LOGIN_USERNAME || '').trim();
+const PORTAL_LOGIN_PASSWORD = process.env.PORTAL_LOGIN_PASSWORD || '';
+const IS_DEMO_AUTH_CONFIGURED = Boolean(PORTAL_LOGIN_USERNAME && PORTAL_LOGIN_PASSWORD);
+const AUTH_COOKIE_NAME = 'currentUser';
+const DONE_STATUSES = ['DONE', 'RESOLVED', 'CLOSED'];
+
+function isAuthenticatedUser(user) {
+  return Boolean(user && user !== 'guest');
+}
+
 let prisma = null;
 function getPrisma() {
   if (!prisma) {
@@ -34,7 +44,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // middleware to extract current user from cookie
 app.use((req, res, next) => {
-  req.currentUser = req.cookies.currentUser || 'guest';
+  req.currentUser = req.cookies[AUTH_COOKIE_NAME] || 'guest';
   res.locals.currentUser = req.currentUser;
   next();
 });
@@ -104,13 +114,53 @@ function appendFallbackComment(reportId, comment) {
 }
 
 function getActor(req) {
-  return req.currentUser && req.currentUser !== 'guest' ? req.currentUser : 'anonymous';
+  return isAuthenticatedUser(req.currentUser) ? req.currentUser : 'anonymous';
 }
 
 function toStatusLabel(status) {
-  if (!status) return 'Open';
-  if (['DONE', 'RESOLVED', 'CLOSED'].includes(status)) return 'Done';
+  if (!status || status === 'OPEN') return 'New';
+  if (DONE_STATUSES.includes(status)) return 'Done';
   return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function getSlaTargetHours(priority) {
+  switch ((priority || '').toLowerCase()) {
+    case 'critical': return 4;
+    case 'high': return 24;
+    case 'medium': return 72;
+    default: return 120;
+  }
+}
+
+function buildSlaSummary(report) {
+  const createdAtMs = new Date(report.createdAt).getTime();
+  if (Number.isNaN(createdAtMs)) {
+    return { targetHours: null, state: 'Unknown', detail: 'Created date unavailable' };
+  }
+
+  const targetHours = getSlaTargetHours(report.priority);
+  const deadlineMs = createdAtMs + (targetHours * 60 * 60 * 1000);
+  const isClosed = DONE_STATUSES.includes((report.status || '').toUpperCase());
+  const effectiveEndMs = isClosed && report.resolvedAt ? new Date(report.resolvedAt).getTime() : Date.now();
+  const elapsedHours = (effectiveEndMs - createdAtMs) / (1000 * 60 * 60);
+  const ratio = elapsedHours / targetHours;
+
+  if (isClosed) {
+    if (effectiveEndMs <= deadlineMs) {
+      return { targetHours, state: 'Met', detail: 'Resolved within SLA' };
+    }
+    return { targetHours, state: 'Missed', detail: 'Resolved after SLA target' };
+  }
+
+  if (Date.now() > deadlineMs) {
+    return { targetHours, state: 'Breached', detail: 'SLA target exceeded' };
+  }
+
+  if (ratio >= 0.8) {
+    return { targetHours, state: 'At Risk', detail: 'Approaching SLA deadline' };
+  }
+
+  return { targetHours, state: 'On Track', detail: 'Within SLA target' };
 }
 
 function withToast(pathname, type, message) {
@@ -149,10 +199,57 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-app.post('/set-user', (req, res) => {
-  const { name } = req.body;
-  if (name) res.cookie('currentUser', name, { maxAge: 7 * 24 * 60 * 60 * 1000 });
-  res.redirect('/');
+app.get('/login', (req, res) => {
+  if (isAuthenticatedUser(req.currentUser)) return res.redirect('/dashboard');
+  res.render('login', {
+    appName: app.locals.appName,
+    error: null,
+    username: ''
+  });
+});
+
+app.post('/login', (req, res) => {
+  const username = (req.body.username || '').trim();
+  const password = req.body.password || '';
+
+  if (!IS_DEMO_AUTH_CONFIGURED) {
+    return res.status(500).render('login', {
+      appName: app.locals.appName,
+      error: 'Login is not configured. Set PORTAL_LOGIN_USERNAME and PORTAL_LOGIN_PASSWORD in .env.',
+      username
+    });
+  }
+
+  if (!username || !password) {
+    return res.status(400).render('login', {
+      appName: app.locals.appName,
+      error: 'Please enter both username and password.',
+      username
+    });
+  }
+
+  if (username !== PORTAL_LOGIN_USERNAME || password !== PORTAL_LOGIN_PASSWORD) {
+    return res.status(401).render('login', {
+      appName: app.locals.appName,
+      error: 'Invalid username or password.',
+      username
+    });
+  }
+
+  res.cookie(AUTH_COOKIE_NAME, username, { maxAge: 7 * 24 * 60 * 60 * 1000 });
+  return res.redirect('/dashboard');
+});
+
+app.post('/logout', (req, res) => {
+  res.clearCookie(AUTH_COOKIE_NAME);
+  return res.redirect('/login');
+});
+
+app.use((req, res, next) => {
+  const publicPaths = ['/login', '/logout'];
+  if (publicPaths.includes(req.path)) return next();
+  if (isAuthenticatedUser(req.currentUser)) return next();
+  return res.redirect('/login');
 });
 
 
@@ -174,14 +271,9 @@ app.get('/dashboard', async (req, res) => {
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
   // KPIs and chart data
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const doneStatuses = ['DONE', 'RESOLVED', 'CLOSED'];
   const kpiOpen = reports.filter(r => (r.status || 'OPEN') === 'OPEN').length;
   const kpiInProgress = reports.filter(r => r.status === 'IN_PROGRESS').length;
-  const kpiDone = reports.filter(r => doneStatuses.includes((r.status || '').toUpperCase())).length;
-  const kpiResolvedToday = reports.filter(r => doneStatuses.includes((r.status || '').toUpperCase()) && r.resolvedAt && new Date(r.resolvedAt) >= today).length;
-  const kpiCritical = reports.filter(r => r.priority === 'Critical' && ['OPEN', 'IN_PROGRESS'].includes((r.status || 'OPEN').toUpperCase())).length;
+  const kpiDone = reports.filter(r => DONE_STATUSES.includes((r.status || '').toUpperCase())).length;
   // Team-wise assignment breakdown for pie chart
   const teamCountMap = new Map();
   for (const r of reports) {
@@ -203,8 +295,6 @@ app.get('/dashboard', async (req, res) => {
     kpiOpen,
     kpiInProgress,
     kpiDone,
-    kpiResolvedToday,
-    kpiCritical,
     teamKeys,
     teamLabels,
     teamCounts
@@ -229,7 +319,7 @@ app.get('/incidents', async (req, res) => {
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
   let filteredReports = reports;
-  if (filter === 'myIncidents' && currentUser && currentUser !== 'guest') {
+  if (filter === 'myIncidents' && isAuthenticatedUser(currentUser)) {
     filteredReports = reports.filter(r => r.reporter === currentUser);
   } else if (filter === 'assigned') {
     filteredReports = reports.filter(r => r.assignee && r.assignee.trim() !== '');
@@ -240,7 +330,7 @@ app.get('/incidents', async (req, res) => {
     if (status.toLowerCase() === 'open') {
       filteredReports = filteredReports.filter(r => (r.status || 'OPEN').toUpperCase() === 'OPEN');
     } else if (status.toLowerCase() === 'done') {
-      filteredReports = filteredReports.filter(r => ['DONE', 'RESOLVED', 'CLOSED'].includes((r.status || '').toUpperCase()));
+      filteredReports = filteredReports.filter(r => DONE_STATUSES.includes((r.status || '').toUpperCase()));
     } else {
       filteredReports = filteredReports.filter(r => (r.status || 'OPEN').toLowerCase() === status.toLowerCase());
     }
@@ -260,7 +350,7 @@ app.get('/incidents', async (req, res) => {
         ? 'Assigned to Me'
         : `Assigned to ${assignee}`;
   } else if (status) {
-    if (status.toLowerCase() === 'open') currentViewLabel = 'Open Incidents';
+    if (status.toLowerCase() === 'open') currentViewLabel = 'New Incidents';
     else if (status.toLowerCase() === 'in_progress') currentViewLabel = 'In Progress';
     else if (status.toLowerCase() === 'done') currentViewLabel = 'Done Incidents';
     else currentViewLabel = status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -282,9 +372,9 @@ app.get('/incidents', async (req, res) => {
   });
 });
 
-// Search endpoint - NEW ROUTE
+// Search endpoint
 app.get('/search', async (req, res) => {
-  const query = req.query.q || '';
+  const query = (req.query.q || '').toString().trim();
   let reports = [];
   let currentUser = req.currentUser;
   
@@ -299,16 +389,39 @@ app.get('/search', async (req, res) => {
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
-  // Filter by search query - search in ID, title, description, and reporter
+  // Filter by search query
   let filteredReports = reports;
-  if (query && query.trim() !== '') {
+  if (query) {
     const queryLower = query.toLowerCase();
-    filteredReports = reports.filter(r => 
-      r.id.toString().includes(query) ||
-      (r.title && r.title.toLowerCase().includes(queryLower)) ||
-      (r.description && r.description.toLowerCase().includes(queryLower)) ||
-      (r.reporter && r.reporter.toLowerCase().includes(queryLower))
-    );
+    const ticketQuery = query.replace(/^#/, '');
+    const isTicketIdQuery = /^#?\d+$/.test(query);
+
+    if (isTicketIdQuery) {
+      const ticketId = Number(ticketQuery);
+      filteredReports = reports.filter(r => Number(r.id) === ticketId);
+    } else {
+      const keywords = queryLower
+        .replace(/[_-]+/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+
+      filteredReports = reports.filter(r => {
+        const searchableText = [
+          r.id,
+          `#${r.id}`,
+          r.title || '',
+          r.description || '',
+          r.reporter || '',
+          r.assignee || '',
+          r.priority || '',
+          (r.status || '').replace(/_/g, ' ')
+        ]
+          .join(' ')
+          .toLowerCase();
+
+        return keywords.every(keyword => searchableText.includes(keyword));
+      });
+    }
     console.log('🔍 [Search] Found', filteredReports.length, 'matching reports');
   }
 
@@ -317,6 +430,8 @@ app.get('/search', async (req, res) => {
     currentUser,
     filter: null,
     status: null,
+    assignee: null,
+    currentViewLabel: query ? `Search Results: ${query}` : 'All Incidents',
     reports: filteredReports,
     searchQuery: query
   });
@@ -346,19 +461,24 @@ app.get('/report/:id', async (req, res) => {
     });
 
     const activities = await prisma.activityLog.findMany({
-      where: { reportId: id },
+      where: {
+        reportId: id,
+        action: { not: 'Comment added' }
+      },
       orderBy: { createdAt: 'desc' },
       take: 25
     });
 
-    res.render('report', { report, comments, activities, currentUser });
+    const sla = buildSlaSummary(report);
+
+    res.render('report', { report, comments, activities, currentUser, sla });
   } catch (err) {
     console.error('Prisma error on GET /report/:id', err.message || err);
     const reports = readFallbackReports();
     const report = reports.find(r => r.id === id);
     const commentsByReport = readFallbackComments();
     const comments = commentsByReport[String(id)] || [];
-    if (report) return res.render('report', { report, comments, activities: [], currentUser });
+    if (report) return res.render('report', { report, comments, activities: [], currentUser, sla: buildSlaSummary(report) });
     res.status(500).send('Database unavailable');
   }
 });
@@ -378,12 +498,6 @@ app.post('/report/:id/comments', async (req, res) => {
         author,
         text
       }
-    });
-    await logActivity(prisma, {
-      reportId: id,
-      actor: author,
-      action: 'Comment added',
-      details: text.slice(0, 120)
     });
   } catch (err) {
     console.error('Error creating comment:', err.message || err);
@@ -551,6 +665,11 @@ app.post('/report/:id/status', async (req, res) => {
   try {
     const prisma = getPrisma();
     const existing = await prisma.bugReport.findUnique({ where: { id }, select: { status: true } });
+    const existingStatus = (existing?.status || 'OPEN').toUpperCase();
+    const nextStatus = String(status).toUpperCase();
+    if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+      return res.status(400).json({ error: 'Closed incidents cannot be reopened.' });
+    }
     const updated = await prisma.bugReport.update({
       where: { id },
       data: { status }
@@ -570,8 +689,13 @@ app.post('/report/:id/status', async (req, res) => {
       const reports = readFallbackReports();
       const idx = reports.findIndex(r => r.id === id);
       if (idx !== -1) {
+        const existingStatus = String(reports[idx].status || 'OPEN').toUpperCase();
+        const nextStatus = String(status).toUpperCase();
+        if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+          return res.status(400).json({ error: 'Closed incidents cannot be reopened.' });
+        }
         reports[idx].status = status;
-        if (['DONE', 'RESOLVED', 'CLOSED'].includes(status)) reports[idx].resolvedAt = new Date().toISOString();
+        if (DONE_STATUSES.includes(nextStatus)) reports[idx].resolvedAt = new Date().toISOString();
         reports[idx].updatedAt = new Date().toISOString();
         saveFallbackReports(reports);
         if (global.io) global.io.emit('report-updated', reports[idx]);
@@ -624,9 +748,9 @@ app.post('/report/:id/assign', async (req, res) => {
 });
 
 app.post('/report', upload.single('screenshot'), async (req, res) => {
-  const { title, description, priority, reporter, assignee } = req.body;
+  const { title, description, priority, assignee } = req.body;
   const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
-  const reporterName = reporter || req.currentUser || 'anonymous';
+  const reporterName = req.currentUser || 'anonymous';
   const payload = { title, description, priority, reporter: reporterName, screenshot };
 
   // If assignee provided in form, set it (allow empty = unassigned)
@@ -655,6 +779,10 @@ app.post('/report', upload.single('screenshot'), async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+if (!IS_DEMO_AUTH_CONFIGURED) {
+  console.warn('⚠️ Demo auth is not configured. Set PORTAL_LOGIN_USERNAME and PORTAL_LOGIN_PASSWORD in .env');
+}
 
 // create http server + socket.io
 const server = http.createServer(app);

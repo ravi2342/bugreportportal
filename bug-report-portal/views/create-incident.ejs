@@ -101,11 +101,14 @@
               <label for="priority">Priority Level *</label>
               <select id="priority" name="priority" required>
                 <option value="">— Select Priority —</option>
-                <option value="Low">Low — Minimal impact</option>
-                <option value="Medium">Medium — Moderate impact</option>
-                <option value="High">High — Significant impact</option>
-                <option value="Critical">Critical — Urgent / Severe</option>
+                <option value="Low">Low — Minimal impact (SLA: 120h)</option>
+                <option value="Medium">Medium — Moderate impact (SLA: 72h)</option>
+                <option value="High">High — Significant impact (SLA: 24h)</option>
+                <option value="Critical">Critical — Urgent / Severe (SLA: 4h)</option>
               </select>
+              <div id="slaHint" style="margin-top:8px;color:#64748b;font-size:12px;">
+                SLA target will be calculated from ticket creation time.
+              </div>
             </div>
             <div class="actions">
               <button type="button" class="btn secondary" onclick="window.location='/incidents'">Cancel</button>
@@ -187,6 +190,24 @@
     const steps = [1,2,3,4];
     let current = 1;
 
+    const priorityToSlaHours = {
+      Critical: 4,
+      High: 24,
+      Medium: 72,
+      Low: 120
+    };
+
+    function updateSlaHint() {
+      const priority = document.getElementById('priority')?.value;
+      const hint = document.getElementById('slaHint');
+      if (!hint) return;
+      if (!priority || !priorityToSlaHours[priority]) {
+        hint.textContent = 'SLA target will be calculated from ticket creation time.';
+        return;
+      }
+      hint.textContent = `Selected ${priority} priority: SLA target is ${priorityToSlaHours[priority]} hours from creation.`;
+    }
+
     function updateSidebar() {
       steps.forEach(s => {
         const el = document.getElementById('s'+s);
@@ -212,6 +233,9 @@
     function goToStep(n){
       showStep(n);
     }
+
+    document.getElementById('priority')?.addEventListener('change', updateSlaHint);
+    updateSlaHint();
 
     function nextStep(){
       if (!validateStep(current)) return;

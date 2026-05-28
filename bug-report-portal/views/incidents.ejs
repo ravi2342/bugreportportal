@@ -145,10 +145,13 @@
         <div class="navbar-right">
           <span class="live-status">Live Auto-Refresh On</span>
           <form action="/search" method="get" style="display:inline-flex;align-items:center;gap:4px;">
-            <input type="text" name="q" placeholder="Search ticket #" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:120px;font-size:1em;" />
+            <input type="text" name="q" value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>" placeholder="Ticket ID or keyword" title="Search by ticket number (e.g. 8 or #8) or text" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;width:180px;font-size:1em;" />
             <button type="submit" style="padding:6px 12px;border-radius:6px;background:#0f766e;color:#fff;border:none;cursor:pointer;font-weight:500;">Search</button>
           </form>
-          <span style="color:#64748b;font-size:1em;">Welcome<% if (currentUser && currentUser !== 'guest') { %>, <%= currentUser %><% } %></span>
+          <span style="color:#64748b;font-size:1em;">Welcome, <%= currentUser %></span>
+          <form action="/logout" method="POST" style="display:inline;">
+            <button type="submit" style="padding:6px 10px;border-radius:6px;background:#ffffff;color:#0f766e;border:1px solid #0f766e;cursor:pointer;font-weight:600;">Logout</button>
+          </form>
         </div>
       </div>
       <div style="padding: 32px;">
@@ -165,6 +168,8 @@
               <span class="status-badge status-<%= report.status %>">
                 <% if (['DONE', 'RESOLVED', 'CLOSED'].includes(report.status)) { %>
                   Done
+                <% } else if ((report.status || '').toUpperCase() === 'OPEN') { %>
+                  New
                 <% } else { %>
                   <%= report.status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) %>
                 <% } %>
@@ -186,7 +191,11 @@
                 <span class="meta-label">Reporter</span>
                 <span class="meta-value">
                   <% if (report.reporter && report.reporter !== 'guest' && report.reporter !== 'anonymous') { %>
-                    <%= report.reporter %>
+                    <% if (report.reporter === currentUser) { %>
+                      <%= currentUser %>
+                    <% } else { %>
+                      Portal User
+                    <% } %>
                   <% } else { %>
                     <em style="color: #94a3b8;">Anonymous</em>
                   <% } %>
