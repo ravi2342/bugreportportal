@@ -1,0 +1,344 @@
+# OpsCenter Bug Report Portal
+
+Incident management portal built with Node.js, Express, Prisma, PostgreSQL, EJS, and Socket.IO.
+
+This document is designed for two audiences:
+1. Developers who want to run or deploy the project.
+2. Video viewers who need a clear, step-by-step walkthrough.
+
+## Documentation Index
+
+1. Full technical and operational guide: [README.md](README.md)
+2. 2-minute setup path: [QUICKSTART.md](QUICKSTART.md)
+3. Presenter narration flow: [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md)
+
+## 1. Project Summary
+
+This portal lets teams:
+1. Create incidents with title, description, priority, assignee, and optional screenshot.
+2. Track incident lifecycle from New to In Progress to Done.
+3. Add comments and view incident activity timeline.
+4. Search incidents by ID, keywords, reporter, assignee, and status.
+5. Monitor KPIs on dashboard and SLA status on incident detail page.
+
+Current workflow rules:
+1. Closed incidents cannot be reopened.
+2. Incident must be assigned before it can be moved to Done.
+3. Incident must be In Progress before it can be moved to Done.
+
+## 2. Tech Stack
+
+1. Node.js (CommonJS)
+2. Express 5
+3. EJS templates
+4. Prisma ORM with PostgreSQL adapter
+5. PostgreSQL
+6. Socket.IO
+7. Multer for file uploads
+8. Cookie-based demo login
+
+## 3. How Data Flows
+
+1. User calls an HTTP route in [app.js](app.js).
+2. Route tries PostgreSQL using Prisma first.
+3. If DB fails, route falls back to JSON files in [data/bugReports.json](data/bugReports.json) and [data/reportComments.json](data/reportComments.json).
+4. EJS templates in [views](views) render the UI.
+5. Socket.IO notifies clients for live incident updates.
+
+## 4. File-by-File Guide
+
+Core backend:
+1. [app.js](app.js): Main server, routes, auth, workflow checks, SLA logic, socket events.
+2. [package.json](package.json): Scripts and dependencies.
+3. [printReports.js](printReports.js): Quick DB diagnostic script.
+
+Views:
+1. [views/login.ejs](views/login.ejs): Login page.
+2. [views/dashboard.ejs](views/dashboard.ejs): KPI dashboard.
+3. [views/incidents.ejs](views/incidents.ejs): Incident list and search view.
+4. [views/report.ejs](views/report.ejs): Incident detail, comments, timeline, SLA, actions.
+5. [views/create-incident.ejs](views/create-incident.ejs): New incident form.
+6. [views/sidebar.ejs](views/sidebar.ejs): Shared sidebar navigation.
+
+Database and Prisma:
+1. [prisma/schema.prisma](prisma/schema.prisma): Models and enum.
+2. [prisma/migrations](prisma/migrations): Migration history.
+3. [prisma/seed-demo.js](prisma/seed-demo.js): Demo seed data.
+4. [prisma.config.ts](prisma.config.ts): Prisma datasource config.
+
+Docker and deployment:
+1. [Dockerfile](Dockerfile): Container image build.
+2. [docker-compose.yml](docker-compose.yml): Base local container profile.
+3. [docker-compose.prod.yml](docker-compose.prod.yml): Production override profile.
+4. [.dockerignore](.dockerignore): Build context exclusions.
+5. [.env.docker.example](.env.docker.example): Production env template.
+
+Config and docs:
+1. [.env](.env): Local app env values.
+2. [SETUP_GUIDE.md](SETUP_GUIDE.md): Additional setup notes.
+3. [README.md](README.md): This complete walkthrough.
+
+## 5. Environment Variables
+
+Required values:
+1. DATABASE_URL
+2. PORT (optional, default 3000)
+3. PORTAL_LOGIN_USERNAME
+4. PORTAL_LOGIN_PASSWORD
+
+Local example (.env):
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bugreportportal"
+PORT=3000
+PORTAL_LOGIN_USERNAME="admin"
+PORTAL_LOGIN_PASSWORD="admin123"
+```
+
+Production env setup:
+
+```bash
+cp .env.docker.example .env.docker
+```
+
+Then edit .env.docker with secure values.
+
+## 6. Local Run (Node + Local PostgreSQL)
+
+Use this path when running directly with npm.
+
+Prerequisites:
+1. Node.js 20+
+2. npm
+3. PostgreSQL running on your machine
+
+### Step 1: Create Database (Required)
+
+```bash
+psql -U postgres
+```
+
+Inside psql:
+
+```sql
+CREATE DATABASE bugreportportal;
+\l
+\q
+```
+
+### Step 2: Install and Configure
+
+```bash
+cd bug-report-portal
+npm install
+```
+
+Create or update .env with DATABASE_URL and login credentials.
+
+### Step 3: Apply Migrations
+
+```bash
+npx prisma migrate deploy
+```
+
+Optional for first-time development flow:
+
+```bash
+npx prisma migrate dev
+```
+
+### Step 4: Optional Demo Data
+
+```bash
+npm run seed:demo
+```
+
+### Step 5: Start Application
+
+Development:
+
+```bash
+npm run dev
+```
+
+Production-like local start:
+
+```bash
+npm start
+```
+
+Access:
+1. http://localhost:3000/login
+
+Use credentials from .env.
+
+## 7. Local Run (Docker Base Profile)
+
+Use this when both app and DB should run in containers.
+
+```bash
+cd bug-report-portal
+docker compose up -d --build
+```
+
+Access:
+1. http://localhost:3000/login
+
+Defaults in base profile:
+1. Username: admin
+2. Password: admin123
+
+Useful commands:
+
+```bash
+docker compose ps
+docker compose logs -f app
+docker compose down
+docker compose down -v
+```
+
+## 8. Production Run (Docker Production Profile)
+
+Use this for production-like deployment behavior.
+
+### What changes in prod profile
+
+1. Database port is not published to host.
+2. App env values are loaded from .env.docker.
+3. Restart policy is set to always.
+
+### Commands
+
+1. Prepare env file:
+
+```bash
+cp .env.docker.example .env.docker
+```
+
+2. Update .env.docker with secure values.
+
+3. Start prod profile:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+4. Check status and logs:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f app
+```
+
+5. Stop prod profile:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+```
+
+Access:
+1. http://localhost:3000/login
+
+Important:
+1. Login credentials in this mode come from .env.docker, not .env.
+
+## 9. Useful PostgreSQL Queries for Demo and Validation
+
+Connect:
+
+```bash
+psql -U postgres -d bugreportportal
+```
+
+Run:
+
+```sql
+\dt
+
+SELECT status, COUNT(*)
+FROM "BugReport"
+GROUP BY status
+ORDER BY status;
+
+SELECT id, title, priority, status, assignee, reporter, "createdAt"
+FROM "BugReport"
+ORDER BY id DESC
+LIMIT 10;
+
+SELECT "reportId", author, text, "createdAt"
+FROM "Comment"
+ORDER BY id DESC
+LIMIT 10;
+
+SELECT "reportId", actor, action, details, "createdAt"
+FROM "ActivityLog"
+ORDER BY id DESC
+LIMIT 20;
+```
+
+## 10. Route Map (Quick Reference)
+
+Auth routes:
+1. GET /login
+2. POST /login
+3. POST /logout
+
+Page routes:
+1. GET /
+2. GET /dashboard
+3. GET /incidents
+4. GET /search
+5. GET /incidents/create
+6. GET /report/:id
+
+Mutation routes:
+1. POST /report
+2. POST /report/:id/update
+3. POST /report/:id/status
+4. POST /report/:id/assign
+5. POST /report/:id/comments
+6. POST /report/:id/attachment
+7. POST /report/:id/attachment/remove
+
+## 11. Video Demo Script (Recommended)
+
+Use this exact flow for a smooth audience demo.
+
+1. Open login page and sign in.
+2. Show dashboard KPIs.
+3. Open incidents list and explain filters.
+4. Create a new incident with priority High.
+5. Open incident details and add a comment.
+6. Assign incident to a team.
+7. Try moving to Done without In Progress to show workflow validation.
+8. Move to In Progress, then Done.
+9. Show activity timeline and SLA section.
+10. Run one SQL query to prove data persistence.
+
+## 12. Troubleshooting
+
+Login fails:
+1. Check active runtime profile.
+2. If local npm run, credentials are from .env.
+3. If production compose profile, credentials are from .env.docker.
+
+Port 3000 already in use:
+1. Stop old process/container.
+2. Or change PORT and restart.
+
+Database connection errors:
+1. Verify DATABASE_URL.
+2. Confirm Postgres is running.
+3. Re-run migrations.
+
+No data shown:
+1. Seed demo data with npm run seed:demo.
+2. Verify tables with SQL queries above.
+
+## 13. Production Improvement Checklist
+
+1. Add reverse proxy with TLS.
+2. Replace demo auth with SSO/IdP.
+3. Use managed PostgreSQL and backups.
+4. Add monitoring, logs, and alerts.
+5. Add CI with automated tests.
