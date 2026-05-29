@@ -11,6 +11,8 @@ This document is designed for two audiences:
 1. Full technical and operational guide: [README.md](README.md)
 2. 2-minute setup path: [QUICKSTART.md](QUICKSTART.md)
 3. Presenter narration flow: [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md)
+4. Local Kubernetes setup (Minikube only): [LOCAL_K8S_STEPS.md](LOCAL_K8S_STEPS.md)
+5. Production Kubernetes setup (cluster only): [PROD_K8S_STEPS.md](PROD_K8S_STEPS.md)
 
 ## 1. Project Summary
 
@@ -525,3 +527,25 @@ No data shown:
 3. Use managed PostgreSQL and backups.
 4. Add monitoring, logs, and alerts.
 5. Add CI with automated tests.
+
+## 14. DevOps Assets Added
+
+1. Jenkins pipeline: [Jenkinsfile](Jenkinsfile)
+2. Sonar scanner config: [sonar-project.properties](sonar-project.properties)
+3. Kubernetes manifests: [k8s/kustomization.yaml](k8s/kustomization.yaml)
+4. Local Kubernetes runbook: [LOCAL_K8S_STEPS.md](LOCAL_K8S_STEPS.md)
+5. Production Kubernetes runbook: [PROD_K8S_STEPS.md](PROD_K8S_STEPS.md)
+
+### Quick local-first validation
+
+```bash
+# Build image
+docker build -t bug-report-portal:local .
+
+# Validate compose app
+docker compose up -d --build
+curl -I http://localhost:3000/login
+
+# Validate k8s manifests without applying
+kubectl apply -k k8s --dry-run=client
+```

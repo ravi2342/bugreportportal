@@ -1,0 +1,128 @@
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    ansiColor('xterm')
+  }
+
+  parameters {
+    booleanParam(name: 'DO_PUSH', defaultValue: false, description: 'Push Docker image to registry')
+    booleanParam(name: 'DO_DEPLOY', defaultValue: false, description: 'Deploy to Kubernetes with kubectl apply -k k8s')
+    string(name: 'IMAGE_NAME', defaultValue: 'bug-report-portal', description: 'Docker image name (without tag)')
+    string(name: 'IMAGE_TAG', defaultValue: '', description: 'Docker tag (default: BUILD_NUMBER)')
+    string(name: 'SONAR_HOST_URL', defaultValue: '', description: 'Optional SonarQube URL (e.g. http://localhost:9000)')
+    password(name: 'SONAR_TOKEN', defaultValue: '', description: 'Optional SonarQube token')
+  }
+
+  environment {
+    EFFECTIVE_IMAGE_TAG = "${params.IMAGE_TAG?.trim() ? params.IMAGE_TAG : env.BUILD_NUMBER}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Install Dependencies') {
+      steps {
+        sh 'npm ci'
+      }
+    }
+
+    stage('Prisma Generate') {
+      steps {
+        sh 'npx prisma generate'
+      }
+    }
+
+    stage('Run Tests (if configured)') {
+      steps {
+        sh '''
+          if grep -q '"test": "echo \\"Error: no test specified\\" && exit 1"' package.json; then
+            echo "No real test suite configured. Skipping tests stage."
+          else
+            npm test
+          fi
+        '''
+      }
+    }
+
+    stage('SonarQube Scan (optional)') {
+      when {
+        expression {
+          return params.SONAR_HOST_URL?.trim() && params.SONAR_TOKEN?.trim()
+        }
+      }
+      steps {
+        sh '''
+          if ! command -v sonar-scanner >/dev/null 2>&1; then
+            echo "sonar-scanner not installed on agent. Skipping Sonar scan."
+            exit 0
+          fi
+
+          sonar-scanner \
+            -Dsonar.host.url="${SONAR_HOST_URL}" \
+            -Dsonar.token="${SONAR_TOKEN}"
+        '''
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG} .'
+      }
+    }
+
+    stage('Trivy Image Scan (optional)') {
+      steps {
+        sh '''
+          if ! command -v trivy >/dev/null 2>&1; then
+            echo "Trivy not installed on agent. Skipping image scan."
+            exit 0
+          fi
+
+          trivy image --severity HIGH,CRITICAL --no-progress ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
+        '''
+      }
+    }
+
+    stage('Push Image (optional)') {
+      when {
+        expression {
+          return params.DO_PUSH
+        }
+      }
+      steps {
+        sh '''
+          echo "Push stage enabled."
+          echo "Run your registry login command in Jenkins agent setup before this stage."
+          docker push ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
+        '''
+      }
+    }
+
+    stage('Deploy to Kubernetes (optional)') {
+      when {
+        expression {
+          return params.DO_DEPLOY
+        }
+      }
+      steps {
+        sh '''
+          kubectl apply -k k8s
+          kubectl rollout status deployment/bug-report-portal-app -n bug-report-portal --timeout=120s
+        '''
+      }
+    }
+  }
+
+  post {
+    always {
+      echo "Pipeline finished."
+      sh 'docker images | head -n 10 || true'
+    }
+  }
+}
