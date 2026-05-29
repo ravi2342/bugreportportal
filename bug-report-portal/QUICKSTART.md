@@ -19,6 +19,19 @@ cd bug-report-portal
 3. For non-Docker path: local PostgreSQL must be running.
 4. Do not run local `npm run dev` and Docker app container at the same time on port 3000.
 
+## Choose Your Path (Compose vs Kubernetes)
+
+| Need | Recommended Path |
+| --- | --- |
+| Fast local app test | Docker Compose |
+| Local deployment behavior test | Kubernetes (Minikube) |
+| Ingress/service style routing test | Kubernetes |
+| Quick DB + app bootstrap | Docker Compose |
+
+Guidance:
+1. Compose is for speed and convenience.
+2. Kubernetes is for deployment-style validation.
+
 ## Option A: Fastest (Docker)
 
 1. Go to project folder.
@@ -76,6 +89,25 @@ docker compose exec db psql -U postgres -d bugreportportal -c 'SELECT id, title,
 ```
 
 If you run `docker compose up -d --build` again, it is usually safe and will update/reuse the same services.
+
+Verify Docker is using the expected image/build:
+
+```bash
+# Shows app service image and build context from compose
+docker compose config | sed -n '/app:/,/^[^[:space:]]/p'
+
+# Shows running app container image
+docker compose ps app
+
+# Shows image IDs for built image and running container
+docker image inspect bug-report-portal-app --format '{{.Id}}' 2>/dev/null || true
+docker inspect "$(docker compose ps -q app)" --format '{{.Image}}'
+```
+
+Notes:
+1. If your compose `app` service has a `build` section and you run `docker compose up -d --build`, Docker builds from the project `Dockerfile` unless a different file is specified in compose.
+2. If compose has both `build` and `image`, compose builds then tags that image name.
+3. If you change source code and do not use `--build`, old image layers can be reused.
 
 To open PostgreSQL shell while using Docker base profile:
 

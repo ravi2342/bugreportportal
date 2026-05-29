@@ -235,6 +235,20 @@ Use credentials from .env.
 
 Use this when both app and DB should run in containers.
 
+### Compose vs Kubernetes (When To Use Which)
+
+| Scenario | Use Docker Compose | Use Kubernetes |
+| --- | --- | --- |
+| Fast local smoke test | Yes | Optional |
+| Production-like orchestration test | Limited | Yes |
+| Needs ingress/service behavior | No | Yes |
+| Single-command local app+db startup | Yes | No |
+| CI/CD and deployment readiness | Partial | Yes |
+
+Rule of thumb:
+1. Use Compose for quick local-only app checks.
+2. Use Kubernetes for deployment workflow validation.
+
 ```bash
 cd bug-report-portal
 docker compose up -d --build
