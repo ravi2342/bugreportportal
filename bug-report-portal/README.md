@@ -568,3 +568,27 @@ curl -I http://localhost:3000/login
 # Validate k8s manifests without applying
 kubectl apply -k k8s --dry-run=client
 ```
+
+### Jenkins Pipeline Setup Notes
+
+Pipeline source:
+1. [Jenkinsfile](Jenkinsfile)
+
+Auto trigger behavior:
+1. Pipeline includes SCM polling every 2 minutes (`H/2 * * * *`).
+
+SonarQube secure setup:
+1. Create a Jenkins credential of type `Secret text` containing your Sonar token.
+2. Use that credential ID in pipeline parameter `SONAR_TOKEN_CREDENTIALS_ID`.
+3. Set `SONAR_HOST_URL` (for example `http://localhost:9000`) when you want scan enabled.
+4. If either value is empty, Sonar stage is skipped.
+
+Deploy stage prerequisites:
+1. `DO_DEPLOY=true` requires `kubectl` on Jenkins agent.
+2. Agent must have kubeconfig/context access to your target cluster.
+3. Deploy stage applies manifests and then updates deployment image to `${IMAGE_NAME}:${IMAGE_TAG or BUILD_NUMBER}`.
+
+Recommended first pipeline run:
+1. `DO_PUSH=false`
+2. `DO_DEPLOY=false`
+3. Add Sonar and deploy only after base build passes.

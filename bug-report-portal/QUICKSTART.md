@@ -237,3 +237,10 @@ Optional demo data seed in production profile:
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app npm run seed:demo
 ```
+
+## Jenkins Quick Notes
+
+1. Pipeline definition is in [Jenkinsfile](Jenkinsfile).
+2. Auto-trigger is SCM polling every 2 minutes.
+3. For Sonar scan, set `SONAR_HOST_URL` and `SONAR_TOKEN_CREDENTIALS_ID` (Jenkins Secret Text credential ID).
+4. Keep `DO_DEPLOY=false` until Jenkins agent has `kubectl` and valid kubeconfig context.
