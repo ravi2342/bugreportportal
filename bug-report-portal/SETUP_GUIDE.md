@@ -8,6 +8,8 @@
 
 Use [README.md](README.md) as the primary source for complete setup + troubleshooting. This guide is a quick companion.
 
+Runtime server note: app requests are served by Node.js + Express directly; nginx is optional and not required for local setup.
+
 ## Quick Start
 
 ### Docker Quick Start (Recommended)

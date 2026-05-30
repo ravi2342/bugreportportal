@@ -39,6 +39,11 @@ Current workflow rules:
 7. Multer for file uploads
 8. Cookie-based demo login
 
+Web server clarification:
+1. The portal is served by Node.js + Express using Node's built-in HTTP server.
+2. Nginx is not required for local run in this project.
+3. In Kubernetes, nginx may be used as an ingress controller, but app traffic still ends at the Node/Express service.
+
 ## 3. How Data Flows
 
 1. User calls an HTTP route in [app.js](app.js).

@@ -7,6 +7,8 @@ Auth cookie note:
 2. Set `AUTH_COOKIE_SECRET` in env for a custom signing secret.
 3. For first-time auth tests, use Incognito/private window or clear localhost cookies.
 
+Runtime server note: this project serves HTTP directly from Node.js + Express; nginx is optional and not required for local run.
+
 ## Pre-Run Checklist
 
 1. Open terminal in project folder:

@@ -30,6 +30,7 @@ Talk track:
 
 - This is OpsCenter Bug Report Portal.
 - It is built with Node.js, Express, Prisma, PostgreSQL, and EJS.
+- The app is served directly by Node.js + Express; nginx is optional and not required for this local demo.
 - I will show setup, core workflow, validation rules, and production-ready Docker profile.
 
 ## 2. Show Project Structure (60 seconds)
