@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  triggers {
+    pollSCM('H/2 * * * *')
+  }
+
   options {
     timestamps()
     ansiColor('xterm')
@@ -12,7 +16,7 @@ pipeline {
     string(name: 'IMAGE_NAME', defaultValue: 'bug-report-portal', description: 'Docker image name (without tag)')
     string(name: 'IMAGE_TAG', defaultValue: '', description: 'Docker tag (default: BUILD_NUMBER)')
     string(name: 'SONAR_HOST_URL', defaultValue: '', description: 'Optional SonarQube URL (e.g. http://localhost:9000)')
-    password(name: 'SONAR_TOKEN', defaultValue: '', description: 'Optional SonarQube token')
+    string(name: 'SONAR_TOKEN_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins String credential ID for Sonar token')
   }
 
   environment {
@@ -41,7 +45,9 @@ pipeline {
     stage('Run Tests (if configured)') {
       steps {
         sh '''
-          if grep -q '"test": "echo \\"Error: no test specified\\" && exit 1"' package.json; then
+          TEST_SCRIPT=$(node -e "const p=require('./package.json'); process.stdout.write((p.scripts&&p.scripts.test)||'')")
+
+          if [ -z "$TEST_SCRIPT" ] || echo "$TEST_SCRIPT" | grep -qi 'no test specified'; then
             echo "No real test suite configured. Skipping tests stage."
           else
             npm test
@@ -53,20 +59,22 @@ pipeline {
     stage('SonarQube Scan (optional)') {
       when {
         expression {
-          return params.SONAR_HOST_URL?.trim() && params.SONAR_TOKEN?.trim()
+          return params.SONAR_HOST_URL?.trim() && params.SONAR_TOKEN_CREDENTIALS_ID?.trim()
         }
       }
       steps {
-        sh '''
-          if ! command -v sonar-scanner >/dev/null 2>&1; then
-            echo "sonar-scanner not installed on agent. Skipping Sonar scan."
-            exit 0
-          fi
+        withCredentials([string(credentialsId: params.SONAR_TOKEN_CREDENTIALS_ID, variable: 'SONAR_TOKEN')]) {
+          sh '''
+            if ! command -v sonar-scanner >/dev/null 2>&1; then
+              echo "sonar-scanner not installed on agent. Skipping Sonar scan."
+              exit 0
+            fi
 
-          sonar-scanner \
-            -Dsonar.host.url="${SONAR_HOST_URL}" \
-            -Dsonar.token="${SONAR_TOKEN}"
-        '''
+            sonar-scanner \
+              -Dsonar.host.url="${SONAR_HOST_URL}" \
+              -Dsonar.token="${SONAR_TOKEN}"
+          '''
+        }
       }
     }
 
@@ -112,7 +120,14 @@ pipeline {
       }
       steps {
         sh '''
+          if ! command -v kubectl >/dev/null 2>&1; then
+            echo "kubectl not found on agent. Aborting deploy stage."
+            exit 1
+          fi
+
+          kubectl cluster-info >/dev/null
           kubectl apply -k k8s
+          kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
           kubectl rollout status deployment/bug-report-portal-app -n bug-report-portal --timeout=120s
         '''
       }
