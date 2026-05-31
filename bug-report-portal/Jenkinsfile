@@ -24,6 +24,7 @@ pipeline {
 
   environment {
     EFFECTIVE_IMAGE_TAG = "${params.IMAGE_TAG?.trim() ? params.IMAGE_TAG : env.BUILD_NUMBER}"
+    APP_DIR = "bug-report-portal"
   }
 
   stages {
@@ -35,44 +36,52 @@ pipeline {
 
     stage('Preflight Tool Check') {
       steps {
-        sh '''
-          set -e
-          echo "Node: $(node -v)"
-          echo "npm: $(npm -v)"
+        dir("${APP_DIR}") {
+          sh '''
+            set -e
+            echo "Node: $(node -v)"
+            echo "npm: $(npm -v)"
 
-          if ! command -v docker >/dev/null 2>&1; then
-            echo "docker not found on agent. Aborting pipeline."
-            exit 1
-          fi
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "docker not found on agent. Aborting pipeline."
+              exit 1
+            fi
 
-          docker --version
-        '''
+            docker --version
+          '''
+        }
       }
     }
 
     stage('Install Dependencies') {
       steps {
-        sh 'npm ci'
+        dir("${APP_DIR}") {
+          sh 'npm ci'
+        }
       }
     }
 
     stage('Prisma Generate') {
       steps {
-        sh 'npx prisma generate'
+        dir("${APP_DIR}") {
+          sh 'npx prisma generate'
+        }
       }
     }
 
     stage('Run Tests (if configured)') {
       steps {
-        sh '''
-          TEST_SCRIPT=$(node -e "const p=require('./package.json'); process.stdout.write((p.scripts&&p.scripts.test)||'')")
+        dir("${APP_DIR}") {
+          sh '''
+            TEST_SCRIPT=$(node -e "const p=require('./package.json'); process.stdout.write((p.scripts&&p.scripts.test)||'')")
 
-          if [ -z "$TEST_SCRIPT" ] || echo "$TEST_SCRIPT" | grep -qi 'no test specified'; then
-            echo "No real test suite configured. Skipping tests stage."
-          else
-            npm test
-          fi
-        '''
+            if [ -z "$TEST_SCRIPT" ] || echo "$TEST_SCRIPT" | grep -qi 'no test specified'; then
+              echo "No real test suite configured. Skipping tests stage."
+            else
+              npm test
+            fi
+          '''
+        }
       }
     }
 
@@ -84,23 +93,27 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: params.SONAR_TOKEN_CREDENTIALS_ID, variable: 'SONAR_TOKEN')]) {
-          sh '''
-            if ! command -v sonar-scanner >/dev/null 2>&1; then
-              echo "sonar-scanner not installed on agent. Skipping Sonar scan."
-              exit 0
-            fi
+          dir("${APP_DIR}") {
+            sh '''
+              if ! command -v sonar-scanner >/dev/null 2>&1; then
+                echo "sonar-scanner not installed on agent. Skipping Sonar scan."
+                exit 0
+              fi
 
-            sonar-scanner \
-              -Dsonar.host.url="${SONAR_HOST_URL}" \
-              -Dsonar.token="${SONAR_TOKEN}"
-          '''
+              sonar-scanner \
+                -Dsonar.host.url="${SONAR_HOST_URL}" \
+                -Dsonar.token="${SONAR_TOKEN}"
+            '''
+          }
         }
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        sh 'docker build -t ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG} .'
+        dir("${APP_DIR}") {
+          sh 'docker build -t ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG} .'
+        }
       }
     }
 
@@ -139,17 +152,19 @@ pipeline {
         }
       }
       steps {
-        sh '''
-          if ! command -v kubectl >/dev/null 2>&1; then
-            echo "kubectl not found on agent. Aborting deploy stage."
-            exit 1
-          fi
+        dir("${APP_DIR}") {
+          sh '''
+            if ! command -v kubectl >/dev/null 2>&1; then
+              echo "kubectl not found on agent. Aborting deploy stage."
+              exit 1
+            fi
 
-          kubectl cluster-info >/dev/null
-          kubectl apply -k k8s
-          kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
-          kubectl rollout status deployment/bug-report-portal-app -n bug-report-portal --timeout=120s
-        '''
+            kubectl cluster-info >/dev/null
+            kubectl apply -k k8s
+            kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
+            kubectl rollout status deployment/bug-report-portal-app -n bug-report-portal --timeout=120s
+          '''
+        }
       }
     }
 
@@ -160,25 +175,27 @@ pipeline {
         }
       }
       steps {
-        sh '''
-          set -e
+        dir("${APP_DIR}") {
+          sh '''
+            set -e
 
-          if ! command -v kubectl >/dev/null 2>&1; then
-            echo "kubectl not found on agent. Cannot run post-deploy smoke tests."
-            exit 1
-          fi
+            if ! command -v kubectl >/dev/null 2>&1; then
+              echo "kubectl not found on agent. Cannot run post-deploy smoke tests."
+              exit 1
+            fi
 
-          kubectl cluster-info >/dev/null
+            kubectl cluster-info >/dev/null
 
-          kubectl -n bug-report-portal port-forward service/bug-report-portal-service 18080:3000 >/tmp/jenkins-port-forward.log 2>&1 &
-          PF_PID=$!
-          trap 'kill $PF_PID >/dev/null 2>&1 || true' EXIT
+            kubectl -n bug-report-portal port-forward service/bug-report-portal-service 18080:3000 >/tmp/jenkins-port-forward.log 2>&1 &
+            PF_PID=$!
+            trap 'kill $PF_PID >/dev/null 2>&1 || true' EXIT
 
-          sleep 3
-          curl -fsS -I http://127.0.0.1:18080/login
-          curl -fsS -I http://127.0.0.1:18080/incidents
-          echo "Smoke tests passed."
-        '''
+            sleep 3
+            curl -fsS -I http://127.0.0.1:18080/login
+            curl -fsS -I http://127.0.0.1:18080/incidents
+            echo "Smoke tests passed."
+          '''
+        }
       }
     }
 
@@ -189,17 +206,19 @@ pipeline {
         }
       }
       steps {
-        sh '''
-          set -e
+        dir("${APP_DIR}") {
+          sh '''
+            set -e
 
-          if [ -z "${E2E_COMMAND}" ]; then
-            echo "RUN_UI_E2E=true but E2E_COMMAND is empty. Skipping UI E2E stage."
-            exit 0
-          fi
+            if [ -z "${E2E_COMMAND}" ]; then
+              echo "RUN_UI_E2E=true but E2E_COMMAND is empty. Skipping UI E2E stage."
+              exit 0
+            fi
 
-          echo "Running UI E2E command: ${E2E_COMMAND}"
-          sh -c "${E2E_COMMAND}"
-        '''
+            echo "Running UI E2E command: ${E2E_COMMAND}"
+            sh -c "${E2E_COMMAND}"
+          '''
+        }
       }
     }
   }
