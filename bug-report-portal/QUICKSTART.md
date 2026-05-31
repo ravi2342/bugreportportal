@@ -401,3 +401,12 @@ Use this path to avoid SSH host key issues in local Jenkins.
 5. Error: `npm ci can only install with an existing package-lock.json`
 	1. Ensure latest code is pushed and Jenkins is building latest `master` commit.
 	2. Wipe Jenkins workspace once and rebuild.
+6. Error: `fatal: not in a git directory`
+	1. In job Pipeline SCM config, uncheck Lightweight checkout.
+	2. Keep Script Path as `Jenkinsfile`.
+	3. Wipe workspace once and rebuild.
+7. Error: Jenkins runs from repo root so `npm ci`/`npm test` cannot find app files (`npm ERR! enoent`, missing `package.json`)
+	1. This repo has app files under `bug-report-portal/` after checkout.
+	2. Use `dir("${APP_DIR}")` for app stages in `Jenkinsfile`.
+	3. Keep `APP_DIR = "bug-report-portal"` in pipeline environment.
+	4. Rebuild once after pulling latest Jenkinsfile.

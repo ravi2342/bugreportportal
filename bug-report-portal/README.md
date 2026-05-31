@@ -544,6 +544,11 @@ Jenkins pipeline checkout fails with `Host key verification failed`:
 2. In job SCM config, use repository URL `https://github.com/ravi2342/bugreportportal.git`.
 3. Select the PAT credential (for example `github-pat`).
 
+Jenkins pipeline fails with `fatal: not in a git directory` during SCM script retrieval:
+1. Open job configuration and uncheck Lightweight checkout in the Pipeline SCM section.
+2. Keep Script Path as `Jenkinsfile`.
+3. Wipe job workspace once, then rebuild.
+
 Jenkins pipeline fails with `Invalid option type "ansiColor"`:
 1. Jenkins instance is missing AnsiColor plugin.
 2. Install AnsiColor plugin, or remove `ansiColor('xterm')` from pipeline options.
@@ -562,6 +567,12 @@ Install step fails with `npm ci can only install with an existing package-lock.j
 2. Ensure latest commit is pushed to `master`.
 3. In Jenkins job, build the latest revision and optionally wipe workspace once.
 4. Confirm `package-lock.json` exists in the checked-out commit.
+
+Jenkins runs from repo root and cannot find app `package.json` (for example `npm ERR! enoent` or `npm ci` fails in nested layout):
+1. This repository checks out with app files under `bug-report-portal/`.
+2. In Jenkinsfile, run app stages inside `dir("${APP_DIR}")`.
+3. Keep `APP_DIR = "bug-report-portal"` in pipeline environment.
+4. Rebuild once after updating Jenkinsfile so workspace uses latest pipeline.
 
 ## 13. Production Improvement Checklist
 
