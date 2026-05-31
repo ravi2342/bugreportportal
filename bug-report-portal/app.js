@@ -865,22 +865,26 @@ io.on('connection', (socket) => {
   console.log('client connected', socket.id);
 });
 
-server.listen(PORT, () => {
-  console.log(`
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    console.log(`
 ╔════════════════════════════════════════╗
 ║  🚀 OpsCenter Bug Report Portal        ║
 ║  Server running on http://localhost:${PORT}  ║
 ╚════════════════════════════════════════╝
   `);
-  console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ Configured' : '❌ Not configured');
-});
+    console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ Configured' : '❌ Not configured');
+  });
 
-process.on('SIGINT', async () => {
-  if (prisma && typeof prisma.$disconnect === 'function') await prisma.$disconnect();
-  server.close(() => process.exit(0));
-});
+  process.on('SIGINT', async () => {
+    if (prisma && typeof prisma.$disconnect === 'function') await prisma.$disconnect();
+    server.close(() => process.exit(0));
+  });
 
-process.on('SIGTERM', async () => {
-  if (prisma && typeof prisma.$disconnect === 'function') await prisma.$disconnect();
-  server.close(() => process.exit(0));
-});
+  process.on('SIGTERM', async () => {
+    if (prisma && typeof prisma.$disconnect === 'function') await prisma.$disconnect();
+    server.close(() => process.exit(0));
+  });
+}
+
+module.exports = { app, server };

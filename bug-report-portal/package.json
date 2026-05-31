@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "PRISMA_CLIENT_ENGINE_TYPE=binary nodemon app.js",
     "start": "node app.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "NODE_ENV=test jest --runInBand",
+    "test:e2e": "echo \"No UI E2E suite configured yet\" && exit 0",
     "seed:demo": "node prisma/seed-demo.js",
     "demo:reset": "npx prisma migrate reset --force && npm run seed:demo"
   },
@@ -25,7 +26,9 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "jest": "^30.0.0",
     "nodemon": "^3.1.14",
-    "prisma": "^7.8.0"
+    "prisma": "^7.8.0",
+    "supertest": "^7.1.1"
   }
 }
