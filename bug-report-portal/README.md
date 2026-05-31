@@ -592,3 +592,31 @@ Recommended first pipeline run:
 1. `DO_PUSH=false`
 2. `DO_DEPLOY=false`
 3. Add Sonar and deploy only after base build passes.
+
+### Manual Local Jenkins Setup Checklist
+
+Pre-checks:
+
+```bash
+cd /Users/demu/projects
+docker info >/dev/null && echo Docker OK
+lsof -nP -iTCP:8081 -sTCP:LISTEN || true
+lsof -nP -iTCP:9000 -sTCP:LISTEN || true
+lsof -nP -iTCP:50000 -sTCP:LISTEN || true
+curl -I https://updates.jenkins.io/current/update-center.json
+curl -I https://get.jenkins.io/plugins/
+```
+
+Install Jenkins:
+
+```bash
+docker volume create jenkins_home
+docker run -d --name jenkins --restart unless-stopped -p 8081:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.kube:/var/jenkins_home/.kube:ro jenkins/jenkins:lts-jdk17
+docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+UI setup flow:
+1. Open `http://localhost:8081` and unlock Jenkins.
+2. Try Install Suggested Plugins first.
+3. If plugin installation fails, use Select plugins to install and start with Pipeline, Git, Credentials Binding, Timestamper, and ANSI Color.
+4. After first login, install Docker Pipeline, SonarQube Scanner for Jenkins, NodeJS, and optional GitHub Integration from Available plugins.

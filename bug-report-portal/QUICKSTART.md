@@ -244,3 +244,68 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app npm run
 2. Auto-trigger is SCM polling every 2 minutes.
 3. For Sonar scan, set `SONAR_HOST_URL` and `SONAR_TOKEN_CREDENTIALS_ID` (Jenkins Secret Text credential ID).
 4. Keep `DO_DEPLOY=false` until Jenkins agent has `kubectl` and valid kubeconfig context.
+
+## Local Jenkins Setup (Manual)
+
+### 1) Pre-checks
+
+Run:
+
+```bash
+cd /Users/demu/projects
+docker info >/dev/null && echo Docker OK
+lsof -nP -iTCP:8081 -sTCP:LISTEN || true
+lsof -nP -iTCP:9000 -sTCP:LISTEN || true
+lsof -nP -iTCP:50000 -sTCP:LISTEN || true
+curl -I https://updates.jenkins.io/current/update-center.json
+curl -I https://get.jenkins.io/plugins/
+```
+
+If ports are free and curl checks work, continue.
+
+### 2) Install Jenkins (Jenkins first)
+
+Run:
+
+```bash
+docker volume create jenkins_home
+docker run -d --name jenkins --restart unless-stopped -p 8081:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.kube:/var/jenkins_home/.kube:ro jenkins/jenkins:lts-jdk17
+```
+
+Verify:
+
+```bash
+docker ps | grep jenkins
+curl -I http://localhost:8081/login
+```
+
+Get unlock password:
+
+```bash
+docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+### 3) Unlock Jenkins in browser
+
+1. Open `http://localhost:8081`.
+2. Paste initial password.
+3. Click Continue.
+4. Choose Install Suggested Plugins.
+5. Wait for completion.
+6. Create admin user.
+
+### 4) Fallback if Suggested Plugins fails
+
+1. Click Select plugins to install.
+2. Install only these first:
+	1. Pipeline
+	2. Git
+	3. Credentials Binding
+	4. Timestamper
+	5. ANSI Color
+3. Complete setup and login.
+4. Go to Manage Jenkins -> Plugins -> Available and install:
+	1. Docker Pipeline
+	2. SonarQube Scanner for Jenkins
+	3. NodeJS
+	4. GitHub Integration (optional)
