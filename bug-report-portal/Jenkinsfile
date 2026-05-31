@@ -47,7 +47,13 @@ pipeline {
               exit 1
             fi
 
+            if ! command -v trivy >/dev/null 2>&1; then
+              echo "trivy not found on agent. Use Dockerfile.jenkins image that includes Trivy."
+              exit 1
+            fi
+
             docker --version
+            trivy --version
           '''
         }
       }
@@ -121,11 +127,11 @@ pipeline {
       steps {
         sh '''
           if ! command -v trivy >/dev/null 2>&1; then
-            echo "Trivy not installed on agent. Skipping image scan."
-            exit 0
+            echo "Trivy not installed on agent. Aborting security scan stage."
+            exit 1
           fi
 
-          trivy image --severity HIGH,CRITICAL --no-progress ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
+          trivy image --severity HIGH,CRITICAL --no-progress --exit-code 1 ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
         '''
       }
     }

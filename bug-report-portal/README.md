@@ -557,6 +557,11 @@ Jenkins preflight fails with `node: not found`, `npm: not found`, or `docker: no
 1. Jenkins runtime image does not include required tools.
 2. Use custom Jenkins image from `Dockerfile.jenkins` and recreate container.
 
+Jenkins preflight fails with `trivy not found on agent`:
+1. Trivy is now required for image security scanning.
+2. Rebuild Jenkins custom image from `Dockerfile.jenkins` and restart container.
+3. Confirm agent has `trivy --version`.
+
 Jenkins post step fails with `permission denied while trying to connect to the docker API`:
 1. Container has Docker CLI but lacks Docker socket permission.
 2. For local setup, run Jenkins container as root (`-u root`) with socket mount:
@@ -567,6 +572,11 @@ Install step fails with `npm ci can only install with an existing package-lock.j
 2. Ensure latest commit is pushed to `master`.
 3. In Jenkins job, build the latest revision and optionally wipe workspace once.
 4. Confirm `package-lock.json` exists in the checked-out commit.
+
+Trivy stage fails pipeline:
+1. Pipeline now uses Trivy as a security gate.
+2. Build fails when HIGH/CRITICAL vulnerabilities are detected.
+3. Resolve vulnerabilities in dependencies/base image, then rebuild.
 
 Jenkins runs from repo root and cannot find app `package.json` (for example `npm ERR! enoent` or `npm ci` fails in nested layout):
 1. This repository checks out with app files under `bug-report-portal/`.

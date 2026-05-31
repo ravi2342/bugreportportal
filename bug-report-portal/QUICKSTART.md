@@ -396,17 +396,23 @@ Use this path to avoid SSH host key issues in local Jenkins.
 	1. Install AnsiColor plugin or remove `ansiColor('xterm')` from Jenkinsfile.
 3. Error: `node: not found` / `npm: not found` / `docker: not found`
 	1. Recreate Jenkins using custom image from `Dockerfile.jenkins`.
-4. Error: `permission denied while trying to connect to the docker API`
+4. Error: `trivy not found on agent`
+	1. Rebuild and use Jenkins custom image from `Dockerfile.jenkins` (now includes Trivy).
+	2. Verify inside Jenkins container: `trivy --version`.
+5. Error: `permission denied while trying to connect to the docker API`
 	1. Re-run Jenkins container with Docker socket mount and local root user (`-u root`).
-5. Error: `npm ci can only install with an existing package-lock.json`
+6. Error: `npm ci can only install with an existing package-lock.json`
 	1. Ensure latest code is pushed and Jenkins is building latest `master` commit.
 	2. Wipe Jenkins workspace once and rebuild.
-6. Error: `fatal: not in a git directory`
+7. Error: `fatal: not in a git directory`
 	1. In job Pipeline SCM config, uncheck Lightweight checkout.
 	2. Keep Script Path as `Jenkinsfile`.
 	3. Wipe workspace once and rebuild.
-7. Error: Jenkins runs from repo root so `npm ci`/`npm test` cannot find app files (`npm ERR! enoent`, missing `package.json`)
+8. Error: Jenkins runs from repo root so `npm ci`/`npm test` cannot find app files (`npm ERR! enoent`, missing `package.json`)
 	1. This repo has app files under `bug-report-portal/` after checkout.
 	2. Use `dir("${APP_DIR}")` for app stages in `Jenkinsfile`.
 	3. Keep `APP_DIR = "bug-report-portal"` in pipeline environment.
 	4. Rebuild once after pulling latest Jenkinsfile.
+9. Error: Trivy stage fails due to HIGH/CRITICAL vulnerabilities
+	1. Trivy scan now fails the build for HIGH/CRITICAL findings.
+	2. Fix vulnerable dependencies/base image and rerun pipeline.
