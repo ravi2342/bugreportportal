@@ -363,3 +363,27 @@ docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 	2. SonarQube Scanner for Jenkins
 	3. NodeJS
 	4. GitHub Integration (optional)
+
+### 5) Git Checkout Setup (HTTPS + PAT)
+
+Use this path to avoid SSH host key issues in local Jenkins.
+
+1. Create GitHub token:
+	1. GitHub -> Settings -> Developer settings -> Personal access tokens
+	2. Create Fine-grained token
+	3. Grant repository access to `bugreportportal`
+	4. Permission needed for checkout: `Contents` read
+2. Add token in Jenkins:
+	1. Manage Jenkins -> Credentials -> Global -> Add Credentials
+	2. Kind: Username with password
+	3. Username: your GitHub username
+	4. Password: paste PAT token
+	5. ID: `github-pat`
+3. Update Jenkins job SCM:
+	1. Job -> Configure
+	2. Pipeline script from SCM -> Git
+	3. Repository URL: `https://github.com/ravi2342/bugreportportal.git`
+	4. Credentials: select `github-pat`
+	5. Save
+4. Re-run pipeline using Build with Parameters.
+5. Checkout stage should pass if PAT and repo access are correct.

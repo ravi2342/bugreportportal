@@ -654,3 +654,17 @@ UI setup flow:
 2. Try Install Suggested Plugins first.
 3. If plugin installation fails, use Select plugins to install and start with Pipeline, Git, Credentials Binding, Timestamper, and ANSI Color.
 4. After first login, install Docker Pipeline, SonarQube Scanner for Jenkins, NodeJS, and optional GitHub Integration from Available plugins.
+
+SCM auth setup (recommended local path: HTTPS + PAT):
+1. Create GitHub Fine-grained PAT with repository access to `bugreportportal` and `Contents` read permission.
+2. In Jenkins: Manage Jenkins -> Credentials -> Global -> Add Credentials.
+3. Use Kind `Username with password`:
+	1. Username: your GitHub username
+	2. Password: PAT token
+	3. ID: `github-pat`
+4. In job SCM config:
+	1. Repository URL: `https://github.com/ravi2342/bugreportportal.git`
+	2. Credentials: `github-pat`
+5. Re-run pipeline; checkout should pass.
+
+Note: GitHub account password does not work for Git checkout. Use PAT (HTTPS) or SSH keys.
