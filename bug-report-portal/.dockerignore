@@ -8,3 +8,11 @@ backups
 .env.*
 coverage
 .vscode
+tests
+*.md
+Jenkinsfile
+Dockerfile.jenkins
+sonar-project.properties
+LOCAL_K8S_STEPS.md
+PROD_K8S_STEPS.md
+k8s
