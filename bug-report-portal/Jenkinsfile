@@ -13,8 +13,12 @@ pipeline {
   parameters {
     booleanParam(name: 'DO_PUSH', defaultValue: false, description: 'Push Docker image to registry')
     booleanParam(name: 'DO_DEPLOY', defaultValue: false, description: 'Deploy to Kubernetes with kubectl apply -k k8s')
+    booleanParam(name: 'RUN_SONAR', defaultValue: false, description: 'Run SonarQube scan stage')
+    booleanParam(name: 'RUN_POST_DEPLOY_TESTS', defaultValue: false, description: 'Run smoke tests after deploy')
+    booleanParam(name: 'RUN_UI_E2E', defaultValue: false, description: 'Run UI E2E command after smoke tests')
     string(name: 'IMAGE_NAME', defaultValue: 'bug-report-portal', description: 'Docker image name (without tag)')
     string(name: 'IMAGE_TAG', defaultValue: '', description: 'Docker tag (default: BUILD_NUMBER)')
+    string(name: 'E2E_COMMAND', defaultValue: '', description: 'Optional UI E2E command (e.g. npm run test:e2e)')
     string(name: 'SONAR_HOST_URL', defaultValue: '', description: 'Optional SonarQube URL (e.g. http://localhost:9000)')
     string(name: 'SONAR_TOKEN_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins String credential ID for Sonar token')
   }
@@ -27,6 +31,23 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
+      }
+    }
+
+    stage('Preflight Tool Check') {
+      steps {
+        sh '''
+          set -e
+          echo "Node: $(node -v)"
+          echo "npm: $(npm -v)"
+
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "docker not found on agent. Aborting pipeline."
+            exit 1
+          fi
+
+          docker --version
+        '''
       }
     }
 
@@ -59,7 +80,7 @@ pipeline {
     stage('SonarQube Scan (optional)') {
       when {
         expression {
-          return params.SONAR_HOST_URL?.trim() && params.SONAR_TOKEN_CREDENTIALS_ID?.trim()
+          return params.RUN_SONAR && params.SONAR_HOST_URL?.trim() && params.SONAR_TOKEN_CREDENTIALS_ID?.trim()
         }
       }
       steps {
@@ -129,6 +150,56 @@ pipeline {
           kubectl apply -k k8s
           kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
           kubectl rollout status deployment/bug-report-portal-app -n bug-report-portal --timeout=120s
+        '''
+      }
+    }
+
+    stage('Post-Deploy Smoke Tests (optional)') {
+      when {
+        expression {
+          return params.DO_DEPLOY && params.RUN_POST_DEPLOY_TESTS
+        }
+      }
+      steps {
+        sh '''
+          set -e
+
+          if ! command -v kubectl >/dev/null 2>&1; then
+            echo "kubectl not found on agent. Cannot run post-deploy smoke tests."
+            exit 1
+          fi
+
+          kubectl cluster-info >/dev/null
+
+          kubectl -n bug-report-portal port-forward service/bug-report-portal-service 18080:3000 >/tmp/jenkins-port-forward.log 2>&1 &
+          PF_PID=$!
+          trap 'kill $PF_PID >/dev/null 2>&1 || true' EXIT
+
+          sleep 3
+          curl -fsS -I http://127.0.0.1:18080/login
+          curl -fsS -I http://127.0.0.1:18080/incidents
+          echo "Smoke tests passed."
+        '''
+      }
+    }
+
+    stage('Post-Deploy UI E2E (optional)') {
+      when {
+        expression {
+          return params.DO_DEPLOY && params.RUN_POST_DEPLOY_TESTS && params.RUN_UI_E2E
+        }
+      }
+      steps {
+        sh '''
+          set -e
+
+          if [ -z "${E2E_COMMAND}" ]; then
+            echo "RUN_UI_E2E=true but E2E_COMMAND is empty. Skipping UI E2E stage."
+            exit 0
+          fi
+
+          echo "Running UI E2E command: ${E2E_COMMAND}"
+          sh -c "${E2E_COMMAND}"
         '''
       }
     }

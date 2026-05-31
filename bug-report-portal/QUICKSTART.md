@@ -245,6 +245,60 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app npm run
 3. For Sonar scan, set `SONAR_HOST_URL` and `SONAR_TOKEN_CREDENTIALS_ID` (Jenkins Secret Text credential ID).
 4. Keep `DO_DEPLOY=false` until Jenkins agent has `kubectl` and valid kubeconfig context.
 
+### Why many parameters default to false
+
+`false` is the safe default so first runs do not accidentally:
+1. Push images to a registry.
+2. Deploy to a cluster.
+3. Run Sonar or E2E stages without required setup.
+
+You switch parameters to `true` only when that environment dependency is ready.
+
+### Jenkins Parameters: When to use true or false
+
+1. `DO_PUSH`
+	1. `false`: local validation, no registry push.
+	2. `true`: push image after build when registry login is configured.
+2. `DO_DEPLOY`
+	1. `false`: CI-only run (build/test only).
+	2. `true`: deploy to Kubernetes when `kubectl` and kubeconfig are ready.
+3. `RUN_SONAR`
+	1. `false`: skip code analysis.
+	2. `true`: run SonarQube when `SONAR_HOST_URL` and `SONAR_TOKEN_CREDENTIALS_ID` are set.
+4. `RUN_POST_DEPLOY_TESTS`
+	1. `false`: skip smoke tests after deploy.
+	2. `true`: run smoke checks (`/login`, `/incidents`) after deployment.
+5. `RUN_UI_E2E`
+	1. `false`: skip UI automation.
+	2. `true`: run UI E2E command after smoke tests.
+6. `E2E_COMMAND`
+	1. Keep empty when `RUN_UI_E2E=false`.
+	2. Set command when `RUN_UI_E2E=true` (example: `npm run test:e2e`).
+
+### Recommended parameter profiles
+
+1. Jenkins shakeout (first run)
+	1. `DO_PUSH=false`
+	2. `DO_DEPLOY=false`
+	3. `RUN_SONAR=false`
+	4. `RUN_POST_DEPLOY_TESTS=false`
+	5. `RUN_UI_E2E=false`
+2. CI + Sonar quality run
+	1. `DO_PUSH=false`
+	2. `DO_DEPLOY=false`
+	3. `RUN_SONAR=true`
+	4. `SONAR_HOST_URL` and `SONAR_TOKEN_CREDENTIALS_ID` set
+3. Staging validation run
+	1. `DO_DEPLOY=true`
+	2. `RUN_POST_DEPLOY_TESTS=true`
+	3. `RUN_UI_E2E=false` (or true once E2E suite is stable)
+4. Full realistic pipeline
+	1. `DO_PUSH=true`
+	2. `DO_DEPLOY=true`
+	3. `RUN_SONAR=true`
+	4. `RUN_POST_DEPLOY_TESTS=true`
+	5. `RUN_UI_E2E=true` with `E2E_COMMAND` set
+
 ## Local Jenkins Setup (Manual)
 
 ### 1) Pre-checks

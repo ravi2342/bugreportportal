@@ -593,6 +593,40 @@ Recommended first pipeline run:
 2. `DO_DEPLOY=false`
 3. Add Sonar and deploy only after base build passes.
 
+Parameter behavior guide (why many defaults are false):
+1. `false` defaults keep first runs safe by preventing accidental push, deploy, or extra gates before environment setup is ready.
+2. Set a parameter to `true` only when that dependency is configured on Jenkins agent.
+
+When to set each parameter:
+1. `DO_PUSH`
+	1. `false`: CI validation only.
+	2. `true`: push image after build (requires registry login).
+2. `DO_DEPLOY`
+	1. `false`: no cluster changes.
+	2. `true`: deploy/update image in Kubernetes (requires `kubectl` + kubeconfig).
+3. `RUN_SONAR`
+	1. `false`: skip analysis.
+	2. `true`: run SonarQube scan (`SONAR_HOST_URL` + `SONAR_TOKEN_CREDENTIALS_ID` required).
+4. `RUN_POST_DEPLOY_TESTS`
+	1. `false`: skip smoke checks.
+	2. `true`: run post-deploy smoke tests.
+5. `RUN_UI_E2E`
+	1. `false`: skip UI automation.
+	2. `true`: run post-deploy UI tests using `E2E_COMMAND`.
+6. `E2E_COMMAND`
+	1. Empty when `RUN_UI_E2E=false`.
+	2. Set command when `RUN_UI_E2E=true` (example: `npm run test:e2e`).
+
+Suggested run profiles:
+1. First Jenkins validation:
+	1. `DO_PUSH=false`, `DO_DEPLOY=false`, `RUN_SONAR=false`, `RUN_POST_DEPLOY_TESTS=false`, `RUN_UI_E2E=false`
+2. CI + quality:
+	1. `DO_PUSH=false`, `DO_DEPLOY=false`, `RUN_SONAR=true`
+3. Staging gate:
+	1. `DO_DEPLOY=true`, `RUN_POST_DEPLOY_TESTS=true`, optional `RUN_UI_E2E=true`
+4. Full realistic flow:
+	1. `DO_PUSH=true`, `DO_DEPLOY=true`, `RUN_SONAR=true`, `RUN_POST_DEPLOY_TESTS=true`, `RUN_UI_E2E=true`
+
 ### Manual Local Jenkins Setup Checklist
 
 Pre-checks:
