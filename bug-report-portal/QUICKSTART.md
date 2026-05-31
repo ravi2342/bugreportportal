@@ -387,3 +387,17 @@ Use this path to avoid SSH host key issues in local Jenkins.
 	5. Save
 4. Re-run pipeline using Build with Parameters.
 5. Checkout stage should pass if PAT and repo access are correct.
+
+### 6) Jenkins Troubleshooting (Local)
+
+1. Error: `Host key verification failed`
+	1. Use HTTPS repo URL + PAT credential (`github-pat`).
+2. Error: `Invalid option type "ansiColor"`
+	1. Install AnsiColor plugin or remove `ansiColor('xterm')` from Jenkinsfile.
+3. Error: `node: not found` / `npm: not found` / `docker: not found`
+	1. Recreate Jenkins using custom image from `Dockerfile.jenkins`.
+4. Error: `permission denied while trying to connect to the docker API`
+	1. Re-run Jenkins container with Docker socket mount and local root user (`-u root`).
+5. Error: `npm ci can only install with an existing package-lock.json`
+	1. Ensure latest code is pushed and Jenkins is building latest `master` commit.
+	2. Wipe Jenkins workspace once and rebuild.

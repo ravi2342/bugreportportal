@@ -539,6 +539,30 @@ No data shown:
 1. Seed demo data with npm run seed:demo.
 2. Verify tables with SQL queries above.
 
+Jenkins pipeline checkout fails with `Host key verification failed`:
+1. If using HTTPS SCM URL, configure Jenkins credentials with GitHub PAT (recommended for local).
+2. In job SCM config, use repository URL `https://github.com/ravi2342/bugreportportal.git`.
+3. Select the PAT credential (for example `github-pat`).
+
+Jenkins pipeline fails with `Invalid option type "ansiColor"`:
+1. Jenkins instance is missing AnsiColor plugin.
+2. Install AnsiColor plugin, or remove `ansiColor('xterm')` from pipeline options.
+
+Jenkins preflight fails with `node: not found`, `npm: not found`, or `docker: not found`:
+1. Jenkins runtime image does not include required tools.
+2. Use custom Jenkins image from `Dockerfile.jenkins` and recreate container.
+
+Jenkins post step fails with `permission denied while trying to connect to the docker API`:
+1. Container has Docker CLI but lacks Docker socket permission.
+2. For local setup, run Jenkins container as root (`-u root`) with socket mount:
+	1. `-v /var/run/docker.sock:/var/run/docker.sock`
+
+Install step fails with `npm ci can only install with an existing package-lock.json`:
+1. Jenkins may be building an older commit or stale workspace.
+2. Ensure latest commit is pushed to `master`.
+3. In Jenkins job, build the latest revision and optionally wipe workspace once.
+4. Confirm `package-lock.json` exists in the checked-out commit.
+
 ## 13. Production Improvement Checklist
 
 1. Add reverse proxy with TLS.
