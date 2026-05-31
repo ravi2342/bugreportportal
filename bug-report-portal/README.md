@@ -561,6 +561,9 @@ Jenkins preflight fails with `trivy not found on agent`:
 1. Trivy is now required for image security scanning.
 2. Rebuild Jenkins custom image from `Dockerfile.jenkins` and restart container.
 3. Confirm agent has `trivy --version`.
+4. If Jenkins still runs old image (`jenkins-local-tools`) after rebuild, recreate container with the new tag (`jenkins-local-tools:trivy`).
+5. Example recreate command:
+	1. `docker stop jenkins && docker rm jenkins && docker run -d --name jenkins -u root --restart unless-stopped -p 8081:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.kube:/var/jenkins_home/.kube:ro jenkins-local-tools:trivy`
 
 Jenkins post step fails with `permission denied while trying to connect to the docker API`:
 1. Container has Docker CLI but lacks Docker socket permission.

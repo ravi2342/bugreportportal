@@ -399,6 +399,9 @@ Use this path to avoid SSH host key issues in local Jenkins.
 4. Error: `trivy not found on agent`
 	1. Rebuild and use Jenkins custom image from `Dockerfile.jenkins` (now includes Trivy).
 	2. Verify inside Jenkins container: `trivy --version`.
+	3. If `docker ps` still shows image `jenkins-local-tools` (without `:trivy`), recreate Jenkins container with `jenkins-local-tools:trivy`.
+	4. Example:
+		1. `docker stop jenkins && docker rm jenkins && docker run -d --name jenkins -u root --restart unless-stopped -p 8081:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.kube:/var/jenkins_home/.kube:ro jenkins-local-tools:trivy`
 5. Error: `permission denied while trying to connect to the docker API`
 	1. Re-run Jenkins container with Docker socket mount and local root user (`-u root`).
 6. Error: `npm ci can only install with an existing package-lock.json`
