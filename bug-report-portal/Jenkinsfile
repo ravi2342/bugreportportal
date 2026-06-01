@@ -10,6 +10,8 @@ pipeline {
   }
 
   parameters {
+    string(name: 'BRANCH', defaultValue: 'master', description: 'Git branch to build')
+    string(name: 'GITHUB_REPO_URL', defaultValue: 'https://github.com/ravi2342/bugreportportal.git', description: 'GitHub repository URL (e.g. https://github.com/user/repo.git)')
     booleanParam(name: 'DO_PUSH', defaultValue: false, description: 'Push Docker image to registry')
     booleanParam(name: 'DO_DEPLOY', defaultValue: false, description: 'Deploy to Kubernetes with kubectl apply -k k8s')
     booleanParam(name: 'RUN_CHECKMARX', defaultValue: false, description: 'Run Checkmarx SAST stage')
@@ -19,7 +21,7 @@ pipeline {
     string(name: 'REGISTRY_URL', defaultValue: '', description: 'Optional registry URL for docker login (example: ghcr.io or index.docker.io/v1/)')
     string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins Username/Password credentials ID for docker login')
     string(name: 'E2E_COMMAND', defaultValue: '', description: 'Optional UI E2E command (e.g. npm run test:e2e)')
-    string(name: 'CHECKMARX_COMMAND', defaultValue: '', description: 'Required when RUN_CHECKMARX=true. Example: cx scan create --project-name bug-report-portal --scan-types sast --branch ${BRANCH_NAME}')
+    string(name: 'CHECKMARX_COMMAND', defaultValue: '', description: 'Required when RUN_CHECKMARX=true. Example: cx scan create --project-name bug-report-portal --scan-types sast --branch ${BRANCH}')
     string(name: 'SONAR_HOST_URL', defaultValue: '', description: 'Optional SonarQube URL (e.g. http://localhost:9000)')
     string(name: 'SONAR_TOKEN_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins String credential ID for Sonar token')
   }
@@ -50,9 +52,9 @@ pipeline {
           // Extract version from package.json
           def packageJson = readJSON file: 'bug-report-portal/package.json'
           
-          // Auto-derive image name from Git repository URL
+          // Extract repo name from GitHub URL parameter
           def imageName = sh(
-            script: 'git config --get remote.origin.url | sed "s|.*/\\([^/]*\\)\\.git$|\\1|"',
+            script: "echo '${params.GITHUB_REPO_URL}' | sed \"s|.*/\\\\([^/]*\\\\)\\\\.git\\$|\\\\1|\"",
             returnStdout: true
           ).trim().toLowerCase()
           
@@ -64,7 +66,7 @@ pipeline {
           
           // Store metadata in currentBuild (enterprise standard)
           currentBuild.displayName = "#${BUILD_NUMBER} ${fullImageName}"
-          currentBuild.description = "Version: ${imageTag}, Branch: ${BRANCH_NAME ?: 'n/a'}, Push: ${params.DO_PUSH}, Deploy: ${params.DO_DEPLOY}, Sonar: ${params.RUN_SONAR}"
+          currentBuild.description = "Version: ${imageTag}, Branch: ${params.BRANCH}, Push: ${params.DO_PUSH}, Deploy: ${params.DO_DEPLOY}, Sonar: ${params.RUN_SONAR}"
         }
       }
     }
