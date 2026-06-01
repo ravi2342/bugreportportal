@@ -1,5 +1,8 @@
 # Bug Report Portal - Fixes & Improvements
 
+## Quick Start
+**Are you ready to run Jenkins with SonarQube?** → Read [JENKINS_BUILD_PARAMETERS.md](JENKINS_BUILD_PARAMETERS.md) first!
+
 ## Session Summary
 Date: June 1, 2026
 
@@ -330,29 +333,101 @@ SONAR_TOKEN_CREDENTIALS_ID=sonar-token
 | **Code Formatting** | Consistent 2-space indentation | ✓ Fixed |
 | **Pipeline Quality Gates** | Automatic fail on violations | ✓ Complete |
 | **Pipeline Structure** | Complete 15+ stage pipeline | ✓ Complete |
-| **Documentation** | Knowledge base created | ✓ Complete |
+| **Documentation** | 4 comprehensive MD files | ✓ Complete |
 | **Git History** | Clean, descriptive commits | ✓ Complete |
+| **Jenkins Parameters Guide** | Detailed parameter reference | ✓ NEW |
 
 ---
 
-## Next Steps
+## Next Steps - RUN JENKINS NOW
 
-1. **Test Quality Gate Enforcement**
-   - Create Jenkins credential with SonarQube token (ID: `sonar-token`)
-   - Run build with `RUN_SONAR=true`
-   - Verify quality gate check works
+### Step 1: Create SonarQube Token in SonarQube
+```
+1. Open http://localhost:9000
+2. Login with admin/admin123
+3. Click profile (top-right) → My Account
+4. Click "Security" tab
+5. Under "Tokens", click "Generate Tokens"
+6. Name: "Jenkins Token"
+7. Click "Generate"
+8. Copy the token (you'll need it in Step 2)
+```
 
-2. **Verify Lint in Pipeline**
-   - Next Jenkins build will automatically run lint stage
-   - Confirm stage passes without errors
+### Step 2: Add SonarQube Token to Jenkins Credentials
+```
+1. Go to http://localhost:8081 (Jenkins)
+2. Click "Manage Jenkins" (left sidebar)
+3. Click "Credentials"
+4. Click "System" → "Global credentials (unrestricted)"
+5. Click "Add Credentials" (top-left)
+6. Fill in:
+   - Kind: "Secret text"
+   - Secret: (paste your SonarQube token from Step 1)
+   - ID: sonar-token  ← IMPORTANT: Must match exactly
+   - Description: "SonarQube Token for Jenkins"
+7. Click "Create"
+```
 
-3. **Configure Additional Rules** (optional)
-   - Adjust ESLint rules if needed
-   - Add project-specific quality gate conditions
-   - Configure Checkmarx when ready
+### Step 3: Run Jenkins Build with SonarQube
 
-4. **Integrate with Code Review**
-   - Set GitHub branch protection rules
-   - Require green pipeline before merge
-   - Enforce quality gate pass requirement
+**Open Jenkins** → Click on pipeline → Click "Build with Parameters"
+
+**Set these parameters:**
+```
+RUN_SONAR = true
+SONAR_HOST_URL = http://host.docker.internal:9000
+SONAR_TOKEN_CREDENTIALS_ID = sonar-token
+RUN_CHECKMARX = false
+DO_PUSH = false
+DO_DEPLOY = false
+IMAGE_TAG = (leave blank)
+```
+
+**Click "Build"** and monitor the SonarQube stage:
+- Watch for "Waiting for quality gate evaluation..."
+- Quality gate result: PASSED ✓ or FAILED ❌
+- If PASSED → Pipeline continues
+- If FAILED → Pipeline stops (fix code violations)
+
+### Step 4: Verify in SonarQube Dashboard
+```
+1. Open http://localhost:9000
+2. Click "Projects"
+3. Click "bug-report-portal"
+4. View issues, coverage, metrics
+5. Understand quality violations
+```
+
+### Step 5: (Optional) Configure Checkmarx
+See [JENKINS_BUILD_PARAMETERS.md](JENKINS_BUILD_PARAMETERS.md) → "Checkmarx SAST Setup" section
+
+---
+
+## Documentation Files
+
+| File | Purpose |
+|------|---------|
+| [JENKINS_BUILD_PARAMETERS.md](JENKINS_BUILD_PARAMETERS.md) | **← READ THIS FIRST** - Complete guide to all Jenkins parameters, when to use them, example values |
+| [QUALITY_GATE_VS_PROFILE.md](QUALITY_GATE_VS_PROFILE.md) | Explains quality profiles vs quality gates |
+| [ESLINT_AND_LINTING.md](ESLINT_AND_LINTING.md) | Complete linting reference and best practices |
+
+**START HERE**: Read [JENKINS_BUILD_PARAMETERS.md](JENKINS_BUILD_PARAMETERS.md) for detailed parameter explanations and common scenarios.
+
+---
+
+## Integration with Code Review (After Testing)
+
+1. **Set GitHub Branch Protection Rules**
+   - Require status checks to pass before merge
+   - Require quality gate pass
+   - Require ESLint to pass
+
+2. **Enforce Quality Gate Pass Requirement**
+   - Add GitHub check for quality gate status
+   - Block merges if SonarQube gate fails
+
+3. **Automated Code Quality Reporting**
+   - GitHub comments with SonarQube results
+   - Inline comments on violations
+   - Coverage reports in PRs
 
