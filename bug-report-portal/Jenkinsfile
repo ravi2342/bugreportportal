@@ -147,33 +147,57 @@ pipeline {
               QUALITY_GATE_STATUS="UNKNOWN"
               RETRIES=10
               RETRY_COUNT=0
+              RESPONSE=""
 
               while [ "${QUALITY_GATE_STATUS}" = "UNKNOWN" ] && [ ${RETRY_COUNT} -lt ${RETRIES} ]; do
-                RESPONSE=$(curl -s -H "Authorization: Bearer ${SONAR_TOKEN}" \
-                  "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${PROJECT_KEY}")
+                echo "Polling quality gate status (attempt $((RETRY_COUNT + 1))/${RETRIES})..."
                 
-                QUALITY_GATE_STATUS=$(echo "${RESPONSE}" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+                RESPONSE=$(curl -s -w "\n" -H "Authorization: Bearer ${SONAR_TOKEN}" \
+                  "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${PROJECT_KEY}" 2>&1)
+                
+                CURL_EXIT=$?
+                if [ ${CURL_EXIT} -ne 0 ]; then
+                  echo "WARNING: curl request failed with exit code ${CURL_EXIT}"
+                  echo "Response: ${RESPONSE}"
+                else
+                  echo "Received response from SonarQube"
+                fi
+                
+                # Extract status using grep - more robust pattern
+                QUALITY_GATE_STATUS=$(echo "${RESPONSE}" | grep -o '"status"\s*:\s*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "UNKNOWN")
                 
                 if [ "${QUALITY_GATE_STATUS}" != "UNKNOWN" ]; then
+                  echo "Quality gate status resolved: ${QUALITY_GATE_STATUS}"
                   break
                 fi
                 
                 RETRY_COUNT=$((RETRY_COUNT + 1))
                 if [ ${RETRY_COUNT} -lt ${RETRIES} ]; then
-                  echo "Quality gate status not ready yet. Retrying ($((RETRY_COUNT+1))/${RETRIES})..."
+                  echo "Status not ready, retrying in 3 seconds..."
                   sleep 3
                 fi
               done
 
               echo "=== Quality Gate Result ==="
-              echo "${RESPONSE}" | grep -o '"status":"[^"]*"'
-
+              echo "Final status: ${QUALITY_GATE_STATUS}"
+              
+              # Handle empty or invalid status
+              if [ -z "${QUALITY_GATE_STATUS}" ] || [ "${QUALITY_GATE_STATUS}" = "UNKNOWN" ]; then
+                echo "❌ Quality Gate evaluation failed or timed out"
+                echo "Raw response was:"
+                echo "${RESPONSE}"
+                echo "This may indicate SonarQube server is unreachable or token is invalid"
+                exit 1
+              fi
+              
               if [ "${QUALITY_GATE_STATUS}" != "OK" ]; then
                 echo "❌ Quality Gate FAILED: ${QUALITY_GATE_STATUS}"
                 echo "Quality gate conditions not met. Pipeline will stop."
+                echo "View details at: ${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}"
                 exit 1
               else
                 echo "✓ Quality Gate PASSED"
+                echo "All quality gate conditions met. Pipeline continues."
               fi
             '''
           }
