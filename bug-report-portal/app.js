@@ -139,10 +139,10 @@ function validateDoneTransition({ existingStatus, existingAssignee, nextStatus }
 
 function getSlaTargetHours(priority) {
   switch ((priority || '').toLowerCase()) {
-    case 'critical': return 4;
-    case 'high': return 24;
-    case 'medium': return 72;
-    default: return 120;
+  case 'critical': return 4;
+  case 'high': return 24;
+  case 'medium': return 72;
+  default: return 120;
   }
 }
 

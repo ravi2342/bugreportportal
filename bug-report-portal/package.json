@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "PRISMA_CLIENT_ENGINE_TYPE=binary nodemon app.js",
     "start": "node app.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "NODE_ENV=test jest --runInBand",
     "test:e2e": "echo \"No UI E2E suite configured yet\" && exit 0",
     "seed:demo": "node prisma/seed-demo.js",
@@ -26,6 +28,7 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "eslint": "^8.57.0",
     "jest": "^30.0.0",
     "nodemon": "^3.1.14",
     "prisma": "^7.8.0",

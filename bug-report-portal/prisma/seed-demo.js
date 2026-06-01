@@ -22,11 +22,11 @@ async function seed() {
       comments: [
         { author: 'anjali', text: 'Issue reproduced on macOS and iOS Safari.' },
         { author: 'dev-team', text: 'Root cause likely tied to disabled state not resetting after validation.' }
-        ],
-        activities: [
-          { actor: 'anjali', action: 'Incident created', details: 'Priority Critical | Assigned to dev-team' },
-          { actor: 'dev-team', action: 'Status changed', details: 'Open -> In Progress' },
-          { actor: 'anjali', action: 'Comment added', details: 'Issue reproduced on macOS and iOS Safari.' }
+      ],
+      activities: [
+        { actor: 'anjali', action: 'Incident created', details: 'Priority Critical | Assigned to dev-team' },
+        { actor: 'dev-team', action: 'Status changed', details: 'Open -> In Progress' },
+        { actor: 'anjali', action: 'Comment added', details: 'Issue reproduced on macOS and iOS Safari.' }
       ]
     },
     {
@@ -38,10 +38,10 @@ async function seed() {
       status: 'OPEN',
       comments: [
         { author: 'rahul', text: 'Observed during regression pass for release 2.4.' }
-        ],
-        activities: [
-          { actor: 'rahul', action: 'Incident created', details: 'Priority High | Assigned to qa-team' },
-          { actor: 'rahul', action: 'Comment added', details: 'Observed during regression pass for release 2.4.' }
+      ],
+      activities: [
+        { actor: 'rahul', action: 'Incident created', details: 'Priority High | Assigned to qa-team' },
+        { actor: 'rahul', action: 'Comment added', details: 'Observed during regression pass for release 2.4.' }
       ]
     },
     {
@@ -54,11 +54,11 @@ async function seed() {
       comments: [
         { author: 'support-team', text: 'Confirmed delay in staging queue, not seen in local mailhog.' },
         { author: 'maria', text: 'Closing for demo environment, production investigation tracked separately.' }
-        ],
-        activities: [
-          { actor: 'maria', action: 'Incident created', details: 'Priority Medium | Assigned to support-team' },
-          { actor: 'support-team', action: 'Status changed', details: 'Open -> In Progress' },
-          { actor: 'maria', action: 'Status changed', details: 'In Progress -> Done' }
+      ],
+      activities: [
+        { actor: 'maria', action: 'Incident created', details: 'Priority Medium | Assigned to support-team' },
+        { actor: 'support-team', action: 'Status changed', details: 'Open -> In Progress' },
+        { actor: 'maria', action: 'Status changed', details: 'In Progress -> Done' }
       ]
     },
     {
@@ -68,28 +68,28 @@ async function seed() {
       reporter: 'guest',
       assignee: null,
       status: 'OPEN',
-        comments: [],
-        activities: [
-          { actor: 'anonymous', action: 'Incident created', details: 'Priority Low' }
-        ]
+      comments: [],
+      activities: [
+        { actor: 'anonymous', action: 'Incident created', details: 'Priority Low' }
+      ]
     }
   ];
 
   for (const scenario of scenarios) {
-      const { comments, activities, ...reportData } = scenario;
+    const { comments, activities, ...reportData } = scenario;
     await prisma.bugReport.create({
       data: {
         ...reportData,
         comments: comments.length
           ? {
-              create: comments
-            }
-            : undefined,
-          activities: activities.length
-            ? {
-                create: activities
-              }
-            : undefined
+            create: comments
+          }
+          : undefined,
+        activities: activities.length
+          ? {
+            create: activities
+          }
+          : undefined
       }
     });
   }

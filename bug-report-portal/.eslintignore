@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.git
+.vscode
+public
+uploads
+.env
+.env.local
+prisma/migrations
