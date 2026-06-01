@@ -59,8 +59,8 @@ pipeline {
           def imageTag = "${packageJson.version}-${BUILD_NUMBER}"
           def fullImageName = "${imageRegistry}/${imageName}:${imageTag}"
           
-          // Store in currentBuild for access in all stages
-          currentBuild.imageTag = fullImageName
+          // Store in environment variable for access in all stages
+          env.IMAGE_TAG = fullImageName
           
           // Store metadata in currentBuild (enterprise standard)
           currentBuild.displayName = "#${BUILD_NUMBER} ${fullImageName}"
@@ -227,7 +227,7 @@ pipeline {
     stage('Build Docker Image') {
       steps {
         dir("${APP_DIR}") {
-          sh "docker build -t ${currentBuild.imageTag} ."
+          sh "docker build -t ${env.IMAGE_TAG} ."
         }
       }
     }
@@ -240,7 +240,7 @@ pipeline {
             exit 1
           fi
 
-          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress --exit-code 1 ${currentBuild.imageTag}
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress --exit-code 1 ${env.IMAGE_TAG}
         """
       }
     }
@@ -255,7 +255,7 @@ pipeline {
         sh """
           echo "Push stage enabled."
           echo "Run your registry login command in Jenkins agent setup before this stage."
-          docker push ${currentBuild.imageTag}
+          docker push ${env.IMAGE_TAG}
         """
       }
     }
@@ -276,7 +276,7 @@ pipeline {
 
             kubectl cluster-info >/dev/null
             kubectl apply -k k8s
-            kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${currentBuild.imageTag}
+            kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${env.IMAGE_TAG}
             kubectl rollout status deployment/bug-report-portal-app -n bug-report-portal --timeout=120s
           """
         }
