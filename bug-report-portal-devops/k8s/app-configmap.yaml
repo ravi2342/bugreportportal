@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: bug-report-portal-config
-  namespace: bug-report-portal
-data:
-  PORT: "3000"
-  PORTAL_LOGIN_USERNAME: "admin"
-  PRISMA_CLIENT_ENGINE_TYPE: "binary"
