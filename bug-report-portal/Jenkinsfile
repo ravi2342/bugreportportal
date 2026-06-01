@@ -152,8 +152,7 @@ pipeline {
               while [ "${QUALITY_GATE_STATUS}" = "UNKNOWN" ] && [ ${RETRY_COUNT} -lt ${RETRIES} ]; do
                 echo "Polling quality gate status (attempt $((RETRY_COUNT + 1))/${RETRIES})..."
                 
-                RESPONSE=$(curl -s -w "\n" -H "Authorization: Bearer ${SONAR_TOKEN}" \
-                  "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${PROJECT_KEY}" 2>&1)
+                RESPONSE=$(curl -s -H "Authorization: Bearer ${SONAR_TOKEN}" "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${PROJECT_KEY}" 2>&1)
                 
                 CURL_EXIT=$?
                 if [ ${CURL_EXIT} -ne 0 ]; then
