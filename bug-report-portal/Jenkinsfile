@@ -134,69 +134,24 @@ pipeline {
                 exit 0
               fi
 
-              echo "=== Starting SonarQube Analysis ==="
+              echo "=== Starting SonarQube Analysis with Quality Gate Check ==="
               sonar-scanner \
                 -Dsonar.host.url="${SONAR_HOST_URL}" \
                 -Dsonar.token="${SONAR_TOKEN}" \
-                -Dsonar.projectKey=bug-report-portal
-
-              echo "=== Waiting for quality gate evaluation (up to 30 seconds) ==="
-              sleep 3
+                -Dsonar.projectKey=bug-report-portal \
+                -Dsonar.qualitygate.wait=true \
+                -Dsonar.qualitygate.timeout=300
               
-              PROJECT_KEY="bug-report-portal"
-              QUALITY_GATE_STATUS="UNKNOWN"
-              RETRIES=10
-              RETRY_COUNT=0
-              RESPONSE=""
-
-              while [ "${QUALITY_GATE_STATUS}" = "UNKNOWN" ] && [ ${RETRY_COUNT} -lt ${RETRIES} ]; do
-                echo "Polling quality gate status (attempt $((RETRY_COUNT + 1))/${RETRIES})..."
-                
-                RESPONSE=$(curl -s -H \"Authorization: Bearer ${SONAR_TOKEN}\" \"${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${PROJECT_KEY}\" 2>&1)
-                
-                CURL_EXIT=$?
-                if [ ${CURL_EXIT} -ne 0 ]; then
-                  echo "WARNING: curl request failed with exit code ${CURL_EXIT}"
-                  echo "Response: ${RESPONSE}"
-                else
-                  echo "Received response from SonarQube"
-                fi
-                
-                # Extract status from JSON response
-                QUALITY_GATE_STATUS=$(echo "${RESPONSE}" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "UNKNOWN")
-                
-                if [ "${QUALITY_GATE_STATUS}" != "UNKNOWN" ]; then
-                  echo "Quality gate status resolved: ${QUALITY_GATE_STATUS}"
-                  break
-                fi
-                
-                RETRY_COUNT=$((RETRY_COUNT + 1))
-                if [ ${RETRY_COUNT} -lt ${RETRIES} ]; then
-                  echo "Status not ready, retrying in 3 seconds..."
-                  sleep 3
-                fi
-              done
-
-              echo "=== Quality Gate Result ==="
-              echo "Final status: ${QUALITY_GATE_STATUS}"
-              
-              # Handle empty or invalid status
-              if [ -z "${QUALITY_GATE_STATUS}" ] || [ "${QUALITY_GATE_STATUS}" = "UNKNOWN" ]; then
-                echo "❌ Quality Gate evaluation failed or timed out"
-                echo "Raw response was:"
-                echo "${RESPONSE}"
-                echo "This may indicate SonarQube server is unreachable or token is invalid"
-                exit 1
-              fi
-              
-              if [ "${QUALITY_GATE_STATUS}" != "OK" ]; then
-                echo "❌ Quality Gate FAILED: ${QUALITY_GATE_STATUS}"
-                echo "Quality gate conditions not met. Pipeline will stop."
-                echo "View details at: ${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}"
-                exit 1
-              else
+              SONAR_EXIT=$?
+              if [ ${SONAR_EXIT} -eq 0 ]; then
                 echo "✓ Quality Gate PASSED"
-                echo "All quality gate conditions met. Pipeline continues."
+                echo "SonarQube analysis completed successfully with all quality gate conditions met."
+              else
+                echo "❌ Quality Gate FAILED"
+                echo "SonarQube analysis did not pass quality gate checks."
+                echo "Exit code: ${SONAR_EXIT}"
+                echo "View details at: ${SONAR_HOST_URL}/dashboard?id=bug-report-portal"
+                exit 1
               fi
             '''
           }
