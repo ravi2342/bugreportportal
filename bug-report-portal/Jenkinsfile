@@ -45,7 +45,7 @@ pipeline {
       steps {
         script {
           // Read registry from config file (tracked in Git)
-          def imageRegistry = readFile('.docker-registry').trim()
+          def imageRegistry = readFile('bug-report-portal/.docker-registry').trim()
           
           // Extract version from package.json
           def packageJson = readJSON file: 'bug-report-portal/package.json'
