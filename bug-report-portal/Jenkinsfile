@@ -12,12 +12,16 @@ pipeline {
   parameters {
     booleanParam(name: 'DO_PUSH', defaultValue: false, description: 'Push Docker image to registry')
     booleanParam(name: 'DO_DEPLOY', defaultValue: false, description: 'Deploy to Kubernetes with kubectl apply -k k8s')
+    booleanParam(name: 'RUN_CHECKMARX', defaultValue: false, description: 'Run Checkmarx SAST stage')
     booleanParam(name: 'RUN_SONAR', defaultValue: false, description: 'Run SonarQube scan stage')
     booleanParam(name: 'RUN_POST_DEPLOY_TESTS', defaultValue: false, description: 'Run smoke tests after deploy')
     booleanParam(name: 'RUN_UI_E2E', defaultValue: false, description: 'Run UI E2E command after smoke tests')
     string(name: 'IMAGE_NAME', defaultValue: 'bug-report-portal', description: 'Docker image name (without tag)')
     string(name: 'IMAGE_TAG', defaultValue: '', description: 'Docker tag (default: BUILD_NUMBER)')
+    string(name: 'REGISTRY_URL', defaultValue: '', description: 'Optional registry URL for docker login (example: ghcr.io or index.docker.io/v1/)')
+    string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins Username/Password credentials ID for docker login')
     string(name: 'E2E_COMMAND', defaultValue: '', description: 'Optional UI E2E command (e.g. npm run test:e2e)')
+    string(name: 'CHECKMARX_COMMAND', defaultValue: '', description: 'Required when RUN_CHECKMARX=true. Example: cx scan create --project-name bug-report-portal --scan-types sast --branch ${BRANCH_NAME}')
     string(name: 'SONAR_HOST_URL', defaultValue: '', description: 'Optional SonarQube URL (e.g. http://localhost:9000)')
     string(name: 'SONAR_TOKEN_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins String credential ID for Sonar token')
   }
@@ -28,9 +32,24 @@ pipeline {
   }
 
   stages {
+    stage('Clean Workspace') {
+      steps {
+        deleteDir()
+      }
+    }
+
     stage('Checkout') {
       steps {
         checkout scm
+      }
+    }
+
+    stage('Build Metadata') {
+      steps {
+        script {
+          currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.IMAGE_NAME}:${env.EFFECTIVE_IMAGE_TAG}"
+          currentBuild.description = "Branch=${env.BRANCH_NAME ?: 'n/a'}, Push=${params.DO_PUSH}, Deploy=${params.DO_DEPLOY}, Checkmarx=${params.RUN_CHECKMARX}, Sonar=${params.RUN_SONAR}"
+        }
       }
     }
 
@@ -75,17 +94,26 @@ pipeline {
       }
     }
 
-    stage('Run Tests (if configured)') {
+    stage('Checkmarx SAST (optional)') {
+      when {
+        expression {
+          return params.RUN_CHECKMARX
+        }
+      }
       steps {
         dir("${APP_DIR}") {
           sh '''
-            TEST_SCRIPT=$(node -e "const p=require('./package.json'); process.stdout.write((p.scripts&&p.scripts.test)||'')")
+            set -e
 
-            if [ -z "$TEST_SCRIPT" ] || echo "$TEST_SCRIPT" | grep -qi 'no test specified'; then
-              echo "No real test suite configured. Skipping tests stage."
-            else
-              npm test
+            if [ -z "${CHECKMARX_COMMAND}" ]; then
+              echo "RUN_CHECKMARX=true but CHECKMARX_COMMAND is empty."
+              echo "Provide a valid command, for example:"
+              echo "cx scan create --project-name bug-report-portal --scan-types sast --branch ${BRANCH_NAME}"
+              exit 1
             fi
+
+            echo "Running Checkmarx command: ${CHECKMARX_COMMAND}"
+            sh -c "${CHECKMARX_COMMAND}"
           '''
         }
       }
@@ -106,11 +134,104 @@ pipeline {
                 exit 0
               fi
 
+              echo "=== Starting SonarQube Analysis ==="
               sonar-scanner \
                 -Dsonar.host.url="${SONAR_HOST_URL}" \
-                -Dsonar.token="${SONAR_TOKEN}"
+                -Dsonar.token="${SONAR_TOKEN}" \
+                -Dsonar.projectKey=bug-report-portal
+
+              echo "=== Waiting for quality gate evaluation (up to 30 seconds) ==="
+              sleep 3
+              
+              PROJECT_KEY="bug-report-portal"
+              QUALITY_GATE_STATUS="UNKNOWN"
+              RETRIES=10
+              RETRY_COUNT=0
+
+              while [ "${QUALITY_GATE_STATUS}" = "UNKNOWN" ] && [ ${RETRY_COUNT} -lt ${RETRIES} ]; do
+                RESPONSE=$(curl -s -H "Authorization: Bearer ${SONAR_TOKEN}" \
+                  "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${PROJECT_KEY}")
+                
+                QUALITY_GATE_STATUS=$(echo "${RESPONSE}" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+                
+                if [ "${QUALITY_GATE_STATUS}" != "UNKNOWN" ]; then
+                  break
+                fi
+                
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                if [ ${RETRY_COUNT} -lt ${RETRIES} ]; then
+                  echo "Quality gate status not ready yet. Retrying ($((RETRY_COUNT+1))/${RETRIES})..."
+                  sleep 3
+                fi
+              done
+
+              echo "=== Quality Gate Result ==="
+              echo "${RESPONSE}" | grep -o '"status":"[^"]*"'
+
+              if [ "${QUALITY_GATE_STATUS}" != "OK" ]; then
+                echo "❌ Quality Gate FAILED: ${QUALITY_GATE_STATUS}"
+                echo "Quality gate conditions not met. Pipeline will stop."
+                exit 1
+              else
+                echo "✓ Quality Gate PASSED"
+              fi
             '''
           }
+        }
+      }
+    }
+
+    stage('Lint (if configured)') {
+      steps {
+        dir("${APP_DIR}") {
+          sh '''
+            LINT_SCRIPT=$(node -e "const p=require('./package.json'); process.stdout.write((p.scripts&&p.scripts.lint)||'')")
+
+            if [ -z "$LINT_SCRIPT" ] || echo "$LINT_SCRIPT" | grep -qi 'no lint'; then
+              echo "No lint script configured. Skipping lint stage."
+            else
+              npm run lint
+            fi
+          '''
+        }
+      }
+    }
+
+    stage('Run Tests (if configured)') {
+      steps {
+        dir("${APP_DIR}") {
+          sh '''
+            TEST_SCRIPT=$(node -e "const p=require('./package.json'); process.stdout.write((p.scripts&&p.scripts.test)||'')")
+
+            if [ -z "$TEST_SCRIPT" ] || echo "$TEST_SCRIPT" | grep -qi 'no test specified'; then
+              echo "No real test suite configured. Skipping tests stage."
+            else
+              npm test
+            fi
+          '''
+        }
+      }
+    }
+
+    stage('Configure Docker Client (optional)') {
+      when {
+        expression {
+          return params.DO_PUSH && params.REGISTRY_CREDENTIALS_ID?.trim()
+        }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: params.REGISTRY_CREDENTIALS_ID, usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
+          sh '''
+            set -e
+
+            if [ -n "${REGISTRY_URL}" ]; then
+              echo "Logging in to ${REGISTRY_URL}"
+              echo "${REGISTRY_PASSWORD}" | docker login ${REGISTRY_URL} -u "${REGISTRY_USER}" --password-stdin
+            else
+              echo "Logging in to Docker default registry"
+              echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin
+            fi
+          '''
         }
       }
     }
