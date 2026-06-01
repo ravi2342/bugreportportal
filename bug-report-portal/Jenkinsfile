@@ -16,8 +16,6 @@ pipeline {
     booleanParam(name: 'RUN_SONAR', defaultValue: false, description: 'Run SonarQube scan stage')
     booleanParam(name: 'RUN_POST_DEPLOY_TESTS', defaultValue: false, description: 'Run smoke tests after deploy')
     booleanParam(name: 'RUN_UI_E2E', defaultValue: false, description: 'Run UI E2E command after smoke tests')
-    string(name: 'IMAGE_NAME', defaultValue: 'bug-report-portal', description: 'Docker image name (without tag)')
-    string(name: 'IMAGE_TAG', defaultValue: '', description: 'Docker tag (default: BUILD_NUMBER)')
     string(name: 'REGISTRY_URL', defaultValue: '', description: 'Optional registry URL for docker login (example: ghcr.io or index.docker.io/v1/)')
     string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins Username/Password credentials ID for docker login')
     string(name: 'E2E_COMMAND', defaultValue: '', description: 'Optional UI E2E command (e.g. npm run test:e2e)')
@@ -27,7 +25,6 @@ pipeline {
   }
 
   environment {
-    EFFECTIVE_IMAGE_TAG = "${params.IMAGE_TAG?.trim() ? params.IMAGE_TAG : env.BUILD_NUMBER}"
     APP_DIR = "bug-report-portal"
   }
 
@@ -47,8 +44,27 @@ pipeline {
     stage('Build Metadata') {
       steps {
         script {
-          currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.IMAGE_NAME}:${env.EFFECTIVE_IMAGE_TAG}"
-          currentBuild.description = "Branch=${env.BRANCH_NAME ?: 'n/a'}, Push=${params.DO_PUSH}, Deploy=${params.DO_DEPLOY}, Checkmarx=${params.RUN_CHECKMARX}, Sonar=${params.RUN_SONAR}"
+          // Read registry from config file (tracked in Git)
+          def imageRegistry = readFile('.docker-registry').trim()
+          
+          // Extract version from package.json
+          def packageJson = readJSON file: 'bug-report-portal/package.json'
+          
+          // Auto-derive image name from Git repository URL
+          def imageName = sh(
+            script: 'git config --get remote.origin.url | sed "s|.*/\\([^/]*\\)\\.git$|\\1|"',
+            returnStdout: true
+          ).trim().toLowerCase()
+          
+          def imageTag = "${packageJson.version}-${BUILD_NUMBER}"
+          def fullImageName = "${imageRegistry}/${imageName}:${imageTag}"
+          
+          // Store in currentBuild for access in all stages
+          currentBuild.imageTag = fullImageName
+          
+          // Store metadata in currentBuild (enterprise standard)
+          currentBuild.displayName = "#${BUILD_NUMBER} ${fullImageName}"
+          currentBuild.description = "Version: ${imageTag}, Branch: ${BRANCH_NAME ?: 'n/a'}, Push: ${params.DO_PUSH}, Deploy: ${params.DO_DEPLOY}, Sonar: ${params.RUN_SONAR}"
         }
       }
     }
@@ -217,21 +233,21 @@ pipeline {
     stage('Build Docker Image') {
       steps {
         dir("${APP_DIR}") {
-          sh 'docker build -t ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG} .'
+          sh "docker build -t ${currentBuild.imageTag} ."
         }
       }
     }
 
     stage('Trivy Image Scan (optional)') {
       steps {
-        sh '''
+        sh """
           if ! command -v trivy >/dev/null 2>&1; then
             echo "Trivy not installed on agent. Aborting security scan stage."
             exit 1
           fi
 
-          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress --exit-code 1 ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
-        '''
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress --exit-code 1 ${currentBuild.imageTag}
+        """
       }
     }
 
@@ -242,11 +258,11 @@ pipeline {
         }
       }
       steps {
-        sh '''
+        sh """
           echo "Push stage enabled."
           echo "Run your registry login command in Jenkins agent setup before this stage."
-          docker push ${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
-        '''
+          docker push ${currentBuild.imageTag}
+        """
       }
     }
 
@@ -258,7 +274,7 @@ pipeline {
       }
       steps {
         dir("${APP_DIR}") {
-          sh '''
+          sh """
             if ! command -v kubectl >/dev/null 2>&1; then
               echo "kubectl not found on agent. Aborting deploy stage."
               exit 1
@@ -266,9 +282,9 @@ pipeline {
 
             kubectl cluster-info >/dev/null
             kubectl apply -k k8s
-            kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${IMAGE_NAME}:${EFFECTIVE_IMAGE_TAG}
+            kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${currentBuild.imageTag}
             kubectl rollout status deployment/bug-report-portal-app -n bug-report-portal --timeout=120s
-          '''
+          """
         }
       }
     }
