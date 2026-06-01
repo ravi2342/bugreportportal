@@ -210,21 +210,15 @@ pipeline {
     stage('Configure Docker Client (optional)') {
       when {
         expression {
-          return params.DO_PUSH && params.REGISTRY_CREDENTIALS_ID?.trim()
+          return params.DO_PUSH
         }
       }
       steps {
-        withCredentials([usernamePassword(credentialsId: params.REGISTRY_CREDENTIALS_ID, usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
+        withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
           sh '''
             set -e
-
-            if [ -n "${REGISTRY_URL}" ]; then
-              echo "Logging in to ${REGISTRY_URL}"
-              echo "${REGISTRY_PASSWORD}" | docker login ${REGISTRY_URL} -u "${REGISTRY_USER}" --password-stdin
-            else
-              echo "Logging in to Docker default registry"
-              echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin
-            fi
+            echo "Logging in to Docker Hub..."
+            echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USER}" --password-stdin
           '''
         }
       }
