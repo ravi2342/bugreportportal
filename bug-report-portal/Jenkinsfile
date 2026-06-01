@@ -163,8 +163,8 @@ pipeline {
                   echo "Received response from SonarQube"
                 fi
                 
-                # Extract status using grep - more robust pattern
-                QUALITY_GATE_STATUS=$(echo "${RESPONSE}" | grep -o '"status"\s*:\s*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "UNKNOWN")
+                # Extract status from JSON response
+                QUALITY_GATE_STATUS=$(echo "${RESPONSE}" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "UNKNOWN")
                 
                 if [ "${QUALITY_GATE_STATUS}" != "UNKNOWN" ]; then
                   echo "Quality gate status resolved: ${QUALITY_GATE_STATUS}"
