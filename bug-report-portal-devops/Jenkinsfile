@@ -11,7 +11,8 @@ pipeline {
 
   parameters {
     string(name: 'BRANCH', defaultValue: 'master', description: 'Git branch to build')
-    string(name: 'GITHUB_REPO_URL', defaultValue: 'https://github.com/ravi2342/bugreportportal.git', description: 'GitHub repository URL (e.g. https://github.com/user/repo.git)')
+    string(name: 'GITHUB_REPO_URL', defaultValue: 'https://github.com/ravi2342/bugreportportal.git', description: 'GitHub application repository URL (e.g. https://github.com/user/repo.git)')
+    string(name: 'DEVOPS_REPO_URL', defaultValue: 'https://github.com/ravi2342/bug-report-portal-devops.git', description: 'DevOps repository URL with Jenkinsfile, Dockerfile, k8s configs')
     booleanParam(name: 'DO_PUSH', defaultValue: false, description: 'Push Docker image to registry')
     booleanParam(name: 'DO_DEPLOY', defaultValue: false, description: 'Deploy to Kubernetes with kubectl apply -k k8s')
     booleanParam(name: 'RUN_CHECKMARX', defaultValue: false, description: 'Run Checkmarx SAST stage')
@@ -39,7 +40,17 @@ pipeline {
 
     stage('Checkout') {
       steps {
-        checkout scm
+        script {
+          // Clone application repository
+          sh '''
+            git clone --branch ${BRANCH} ${GITHUB_REPO_URL} bug-report-portal
+          '''
+          
+          // Clone DevOps repository (contains Dockerfile, k8s configs, etc.)
+          sh '''
+            git clone ${DEVOPS_REPO_URL} devops
+          '''
+        }
       }
     }
 
@@ -229,7 +240,7 @@ pipeline {
     stage('Build Docker Image') {
       steps {
         dir("${APP_DIR}") {
-          sh "docker build -t ${env.IMAGE_TAG} ."
+          sh "docker build -t ${env.IMAGE_TAG} -f ../devops/Dockerfile ."
         }
       }
     }
@@ -277,7 +288,7 @@ pipeline {
             fi
 
             kubectl cluster-info >/dev/null
-            kubectl apply -k k8s
+            kubectl apply -k ../devops/k8s
             kubectl -n bug-report-portal set image deployment/bug-report-portal-app app=${env.IMAGE_TAG}
             kubectl rollout status deployment/bug-report-portal-app -n bug-report-portal --timeout=120s
           """
