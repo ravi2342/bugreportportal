@@ -1,718 +1,85 @@
 # OpsCenter Bug Report Portal
 
-Incident management portal built with Node.js, Express, Prisma, PostgreSQL, EJS, and Socket.IO.
+Incident management system: create, track, and comment on incidents with real-time updates.
 
-This document is designed for two audiences:
-1. Developers who want to run or deploy the project.
-2. Video viewers who need a clear, step-by-step walkthrough.
+**Stack:** Node.js · Express · Prisma · PostgreSQL · EJS · Socket.IO
 
-## Documentation Index
+---
 
-1. Full technical and operational guide: [README.md](README.md)
-2. 2-minute setup path: [QUICKSTART.md](QUICKSTART.md)
-3. Presenter narration flow: [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md)
-4. Local Kubernetes setup (Minikube only): [LOCAL_K8S_STEPS.md](LOCAL_K8S_STEPS.md)
-5. Production Kubernetes setup (cluster only): [PROD_K8S_STEPS.md](PROD_K8S_STEPS.md)
+## 🚀 Quick Start
 
-## 1. Project Summary
-
-This portal lets teams:
-1. Create incidents with title, description, priority, assignee, and optional screenshot.
-2. Track incident lifecycle from New to In Progress to Done.
-3. Add comments and view incident activity timeline.
-4. Search incidents by ID, keywords, reporter, assignee, and status.
-5. Monitor KPIs on dashboard and SLA status on incident detail page.
-
-Current workflow rules:
-1. Closed incidents cannot be reopened.
-2. Incident must be assigned before it can be moved to Done.
-3. Incident must be In Progress before it can be moved to Done.
-
-## 2. Tech Stack
-
-1. Node.js (CommonJS)
-2. Express 5
-3. EJS templates
-4. Prisma ORM with PostgreSQL adapter
-5. PostgreSQL
-6. Socket.IO
-7. Multer for file uploads
-8. Cookie-based demo login
-
-Web server clarification:
-1. The portal is served by Node.js + Express using Node's built-in HTTP server.
-2. Nginx is not required for local run in this project.
-3. In Kubernetes, nginx may be used as an ingress controller, but app traffic still ends at the Node/Express service.
-
-## 3. How Data Flows
-
-1. User calls an HTTP route in [app.js](app.js).
-2. Route tries PostgreSQL using Prisma first.
-3. If DB fails, route falls back to JSON files in [data/bugReports.json](data/bugReports.json) and [data/reportComments.json](data/reportComments.json).
-4. EJS templates in [views](views) render the UI.
-5. Socket.IO notifies clients for live incident updates.
-
-## 3A. Screenshot Upload Flow (Where Images Are Stored)
-
-When a user uploads an image:
-1. Upload request is handled by route logic in [app.js](app.js) using Multer.
-2. Binary file is saved to the uploads folder:
-	1. Local/non-Docker runtime: [uploads](uploads)
-	2. Docker runtime: `/app/uploads` inside container (mounted as volume `app_uploads`)
-3. App stores only the file path string (not binary) in DB field `screenshot` of `BugReport`.
-4. Example stored path value: `/uploads/1779968944443-screenshot.png`
-5. Browser loads image through static route `/uploads/...`.
-
-Persistence behavior:
-1. Local runtime: files stay in [uploads](uploads) on your machine.
-2. Docker runtime: files stay in Docker volume `app_uploads`.
-3. If you run `docker compose down`, data remains.
-4. If you run `docker compose down -v`, DB and uploaded image volume are removed.
-
-Quick verification:
-
-```bash
-# list uploaded files on host (local runtime)
-ls -lah uploads
-
-# check screenshot paths saved in DB
-psql -U postgres -d bugreportportal -c 'SELECT id, screenshot FROM "BugReport" ORDER BY id DESC LIMIT 10;'
-
-# list uploaded files in Docker app container
-docker compose exec app ls -lah /app/uploads
-
-# check screenshot paths saved in Docker DB container
-docker compose exec db psql -U postgres -d bugreportportal -c 'SELECT id, title, screenshot FROM "BugReport" WHERE screenshot IS NOT NULL ORDER BY id DESC LIMIT 10;'
-```
-
-## 4. File-by-File Guide
-
-Core backend:
-1. [app.js](app.js): Main server, routes, auth, workflow checks, SLA logic, socket events.
-2. [package.json](package.json): Scripts and dependencies.
-3. [printReports.js](printReports.js): Quick DB diagnostic script.
-
-Views:
-1. [views/login.ejs](views/login.ejs): Login page.
-2. [views/dashboard.ejs](views/dashboard.ejs): KPI dashboard.
-3. [views/incidents.ejs](views/incidents.ejs): Incident list and search view.
-4. [views/report.ejs](views/report.ejs): Incident detail, comments, timeline, SLA, actions.
-5. [views/create-incident.ejs](views/create-incident.ejs): New incident form.
-6. [views/sidebar.ejs](views/sidebar.ejs): Shared sidebar navigation.
-
-Database and Prisma:
-1. [prisma/schema.prisma](prisma/schema.prisma): Models and enum.
-2. [prisma/migrations](prisma/migrations): Migration history.
-3. [prisma/seed-demo.js](prisma/seed-demo.js): Demo seed data.
-4. [prisma.config.ts](prisma.config.ts): Prisma datasource config.
-
-Docker and deployment:
-1. [Dockerfile](Dockerfile): Container image build.
-2. [docker-compose.yml](docker-compose.yml): Base local container profile.
-3. [docker-compose.prod.yml](docker-compose.prod.yml): Production override profile.
-4. [.dockerignore](.dockerignore): Build context exclusions.
-5. [.env.docker.example](.env.docker.example): Production env template.
-
-Config and docs:
-1. [.env](.env): Local app env values.
-2. [SETUP_GUIDE.md](SETUP_GUIDE.md): Additional setup notes.
-3. [README.md](README.md): This complete walkthrough.
-
-## 5. Environment Variables
-
-Required values:
-1. DATABASE_URL
-2. PORT (optional, default 3000)
-3. PORTAL_LOGIN_USERNAME
-4. PORTAL_LOGIN_PASSWORD
-5. AUTH_COOKIE_SECRET (recommended; used to sign login cookie)
-
-Local example (.env):
-
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bugreportportal"
-PORT=3000
-PORTAL_LOGIN_USERNAME="admin"
-PORTAL_LOGIN_PASSWORD="admin123"
-```
-
-Production env setup:
-
-```bash
-cp .env.docker.example .env.docker
-```
-
-Then edit .env.docker with secure values.
-
-Auth cookie behavior:
-1. Login sets a signed cookie named `currentUser`.
-2. Protected routes (for example `/dashboard`) require a valid signed cookie.
-3. Cookie is set with `httpOnly` and `sameSite=lax`.
-4. Set `AUTH_COOKIE_SECRET` in env for non-default signing secret.
-
-## 5A. Prerequisites Checklist
-
-Before running any command, confirm:
-1. You are inside project directory:
-
-```bash
-cd bug-report-portal
-```
-
-2. Docker route:
-	1. Docker Desktop is running.
-	2. `docker compose version` works.
-3. Non-Docker route:
-	1. Node.js 20+ and npm are installed.
-	2. Local PostgreSQL service is running.
-4. Run only one app runtime at a time on port 3000 (either Docker app container or local `npm run dev`).
-
-## 6. Local Run (Node + Local PostgreSQL)
-
-Use this path when running directly with npm.
-
-Prerequisites:
-1. Node.js 20+
-2. npm
-3. PostgreSQL running on your machine
-
-### Step 1: Create Database (Required)
-
-```bash
-psql -U postgres
-```
-
-Inside psql:
-
-```sql
-CREATE DATABASE bugreportportal;
-\l
-\q
-```
-
-### Step 2: Install and Configure
-
-```bash
-cd bug-report-portal
-npm install
-```
-
-Create or update .env with DATABASE_URL and login credentials.
-
-### Step 3: Apply Migrations
-
-```bash
-npx prisma migrate deploy
-```
-
-Optional for first-time development flow:
-
-```bash
-npx prisma migrate dev
-```
-
-### Step 4: Optional Demo Data
-
-```bash
-npm run seed:demo
-```
-
-### Step 5: Start Application
-
-Development:
-
-```bash
-npm run dev
-```
-
-Production-like local start:
-
-```bash
-npm start
-```
-
-Access:
-1. http://localhost:3000/login
-
-Use credentials from .env.
-
-## 7. Local Run (Docker Base Profile)
-
-Use this when both app and DB should run in containers.
-
-### Compose vs Kubernetes (When To Use Which)
-
-| Scenario | Use Docker Compose | Use Kubernetes |
-| --- | --- | --- |
-| Fast local smoke test | Yes | Optional |
-| Production-like orchestration test | Limited | Yes |
-| Needs ingress/service behavior | No | Yes |
-| Single-command local app+db startup | Yes | No |
-| CI/CD and deployment readiness | Partial | Yes |
-
-Rule of thumb:
-1. Use Compose for quick local-only app checks.
-2. Use Kubernetes for deployment workflow validation.
-
-```bash
-cd bug-report-portal
-docker compose up -d --build
-```
-
-Access:
-1. http://localhost:3000/login
-
-Defaults in base profile:
-1. Username: admin
-2. Password: admin123
-
-Optional demo data seed in Docker mode:
-
-```bash
-docker compose exec app npm run seed:demo
-```
-
-Useful commands:
-
-```bash
-docker compose ps
-docker compose logs -f app
-docker compose down
-docker compose down -v
-```
-
-### Data Retention: `down` vs `down -v`
-
-Use these based on your goal:
-1. `docker compose down`
-	1. Stops and removes containers only.
-	2. Keeps volumes (`pgdata`, `app_uploads`).
-	3. Incidents and uploaded screenshots remain.
-2. `docker compose down -v`
-	1. Stops/removes containers and removes volumes.
-	2. Incidents and uploaded screenshots are wiped.
-
-Recommended for demo videos:
-1. For rehearsal: use `docker compose down` to keep your test incidents.
-2. For final recording: use `docker compose down -v`, then `docker compose up -d --build` to start from a clean state.
-3. Create fresh incidents live during recording for a clear end-to-end story.
-
-### How Database Gets Created in Docker
-
-1. The PostgreSQL container uses environment variables from [docker-compose.yml](docker-compose.yml):
-	1. `POSTGRES_DB=bugreportportal`
-	2. `POSTGRES_USER=postgres`
-	3. `POSTGRES_PASSWORD=postgres`
-2. On first startup (when the Postgres data volume is empty), the official Postgres image automatically creates the `bugreportportal` database.
-3. App startup then runs Prisma migrations from [Dockerfile](Dockerfile):
-	1. `npx prisma migrate deploy`
-4. Result:
-	1. Database is created by Postgres container initialization.
-	2. Tables are created by Prisma migrations.
-
-Important behavior:
-1. DB creation runs only the first time for a fresh Postgres volume.
-2. If you run `docker compose up` again, it reuses existing DB data.
-3. To recreate database from scratch, remove volumes:
-
-```bash
-docker compose down -v
-docker compose up -d --build
-```
-
-### If You Run `docker compose up -d --build` Again
-
-1. It normally does not fail.
-2. Docker Compose is idempotent for the same project and compose file.
-3. It will reuse or recreate only what changed, and keep services on the same ports.
-
-It can fail when ports are already used by something else, for example:
-1. Another app using port 3000.
-2. Another Postgres process using port 5432.
-
-Quick recovery steps:
-
-```bash
-docker compose ps
-docker compose down
-docker compose up -d --build
-```
-
-If ports are still busy, check and stop host processes:
-
-```bash
-lsof -nP -iTCP:3000 -sTCP:LISTEN
-lsof -nP -iTCP:5432 -sTCP:LISTEN
-```
-
-Stop the process by PID (replace `<PID>` with the value from lsof output):
-
-```bash
-# graceful stop (recommended first)
-kill -15 <PID>
-
-# force stop only if the process does not exit
-kill -9 <PID>
-```
-
-Then start compose again:
-
+**Fastest:**
 ```bash
 docker compose up -d --build
+# http://localhost:3000 → admin / admin123
 ```
 
-## 8. Production Run (Docker Production Profile)
+**See [QUICKSTART.md](QUICKSTART.md) for all options.**
 
-Use this for production-like deployment behavior.
+---
 
-### What changes in prod profile
+## 📋 Features
 
-1. Database port is not published to host.
-2. App env values are loaded from .env.docker.
-3. Restart policy is set to always.
+- Create incidents with priority, assignee, screenshot
+- Track status: New → In Progress → Done  
+- Comment and view activity timeline
+- Search by ID, keyword, reporter, assignee, status
+- Dashboard with KPIs and SLA tracking
+- Real-time updates via Socket.IO
 
-### Commands
+---
 
-1. Prepare env file:
+## 📚 Documentation
+
+| File | Purpose |
+|------|---------|
+| [QUICKSTART.md](QUICKSTART.md) | 2-minute setup |
+| [SETUP_GUIDE.md](SETUP_GUIDE.md) | Detailed setup + troubleshooting |
+| [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md) | Demo walkthrough |
+| [ESLINT_AND_LINTING.md](ESLINT_AND_LINTING.md) | Code quality |
+| [FIXES_AND_IMPROVEMENTS.md](FIXES_AND_IMPROVEMENTS.md) | Known issues |
+
+**DevOps & Deployment (External Repo):**
+- [LOCAL_K8S_STEPS](https://github.com/ravi2342/bug-report-portal-devops/blob/master/LOCAL_K8S_STEPS.md) - Local Kubernetes
+- [PROD_K8S_STEPS](https://github.com/ravi2342/bug-report-portal-devops/blob/master/PROD_K8S_STEPS.md) - Production Kubernetes
+- [JENKINS_BUILD_PARAMETERS](https://github.com/ravi2342/bug-report-portal-devops/blob/master/JENKINS_BUILD_PARAMETERS.md) - CI/CD pipeline
+
+---
+
+## 📁 Project Structure
+
+```
+app.js                    # Main server, routes, auth, SLA logic
+package.json              # Dependencies & scripts
+views/                    # EJS templates (login, dashboard, incidents)
+prisma/schema.prisma     # Database schema
+uploads/                  # Screenshot storage (local) / Docker volume
+```
+
+---
+
+## 💾 Database & Screenshots
+
+**Login:** admin / admin123
+
+**Screenshot Storage:**
+- Local: `uploads/` folder
+- Docker: Docker volume `app_uploads`
+- DB: Only file path stored in `BugReport.screenshot`
+
+---
+
+## ⚙️ Scripts
 
 ```bash
-cp .env.docker.example .env.docker
+npm run dev              # Dev server with nodemon
+npm run migrate          # Run migrations
+npm run seed:demo        # Seed demo data
+npm test                 # Run tests
+npm run eslint           # Lint code
 ```
 
-2. Update .env.docker with secure values.
+---
 
-3. Start prod profile:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-```
-
-4. Check status and logs:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f app
-```
-
-5. Stop prod profile:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-```
-
-Access:
-1. http://localhost:3000/login
-
-Important:
-1. Login credentials in this mode come from .env.docker, not .env.
-2. Running the same prod command again is safe; Compose reconciles existing services.
-3. Database creation behavior is the same as base profile: Postgres creates DB on first empty volume init, then Prisma migrations create tables.
-
-Optional demo data seed in production profile:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec app npm run seed:demo
-```
-
-## 9. Useful PostgreSQL Queries for Demo and Validation
-
-Connect:
-
-```bash
-psql -U postgres -d bugreportportal
-```
-
-When using Docker base profile, you can also connect from host because 5432 is published:
-
-```bash
-psql -h localhost -U postgres -d bugreportportal
-```
-
-When app is running with Docker Compose, connect to PostgreSQL inside the DB container:
-
-Base profile:
-
-```bash
-docker compose exec db psql -U postgres -d bugreportportal
-```
-
-Production profile:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db psql -U postgres -d bugreportportal
-```
-
-Run:
-
-```sql
-\dt
-
-SELECT status, COUNT(*)
-FROM "BugReport"
-GROUP BY status
-ORDER BY status;
-
-SELECT id, title, priority, status, assignee, reporter, "createdAt"
-FROM "BugReport"
-ORDER BY id DESC
-LIMIT 10;
-
-SELECT "reportId", author, text, "createdAt"
-FROM "Comment"
-ORDER BY id DESC
-LIMIT 10;
-
-SELECT "reportId", actor, action, details, "createdAt"
-FROM "ActivityLog"
-ORDER BY id DESC
-LIMIT 20;
-```
-
-## 10. Route Map (Quick Reference)
-
-Auth routes:
-1. GET /login
-2. POST /login
-3. POST /logout
-
-Page routes:
-1. GET /
-2. GET /dashboard
-3. GET /incidents
-4. GET /search
-5. GET /incidents/create
-6. GET /report/:id
-
-Mutation routes:
-1. POST /report
-2. POST /report/:id/update
-3. POST /report/:id/status
-4. POST /report/:id/assign
-5. POST /report/:id/comments
-6. POST /report/:id/attachment
-7. POST /report/:id/attachment/remove
-
-## 11. Video Demo Script (Recommended)
-
-Use this exact flow for a smooth audience demo.
-
-Before recording, reset to clean state:
-
-```bash
-docker compose down -v
-docker compose up -d --build
-```
-
-1. Open login page and sign in.
-2. Show dashboard KPIs.
-3. Open incidents list and explain filters.
-4. Create a new incident with priority High.
-5. Open incident details and add a comment.
-6. Assign incident to a team.
-7. Try moving to Done without In Progress to show workflow validation.
-8. Move to In Progress, then Done.
-9. Show activity timeline and SLA section.
-10. Run one SQL query to prove data persistence.
-
-## 12. Troubleshooting
-
-Login fails:
-1. Check active runtime profile.
-2. If local npm run, credentials are from .env.
-3. If production compose profile, credentials are from .env.docker.
-
-Dashboard opens without login unexpectedly:
-1. Most likely browser already has a valid login cookie.
-2. Test in Incognito/private window or clear cookies for localhost.
-3. After cookie clear, opening `/dashboard` should redirect to `/login`.
-
-Port 3000 already in use:
-1. Stop old process/container.
-2. Or change PORT and restart.
-
-Database connection errors:
-1. Verify DATABASE_URL.
-2. Confirm Postgres is running.
-3. Re-run migrations.
-
-No data shown:
-1. Seed demo data with npm run seed:demo.
-2. Verify tables with SQL queries above.
-
-Jenkins pipeline checkout fails with `Host key verification failed`:
-1. If using HTTPS SCM URL, configure Jenkins credentials with GitHub PAT (recommended for local).
-2. In job SCM config, use repository URL `https://github.com/ravi2342/bugreportportal.git`.
-3. Select the PAT credential (for example `github-pat`).
-
-Jenkins pipeline fails with `fatal: not in a git directory` during SCM script retrieval:
-1. Open job configuration and uncheck Lightweight checkout in the Pipeline SCM section.
-2. Keep Script Path as `Jenkinsfile`.
-3. Wipe job workspace once, then rebuild.
-
-Jenkins pipeline fails with `Invalid option type "ansiColor"`:
-1. Jenkins instance is missing AnsiColor plugin.
-2. Install AnsiColor plugin, or remove `ansiColor('xterm')` from pipeline options.
-
-Jenkins preflight fails with `node: not found`, `npm: not found`, or `docker: not found`:
-1. Jenkins runtime image does not include required tools.
-2. Use custom Jenkins image from `Dockerfile.jenkins` and recreate container.
-
-Jenkins preflight fails with `trivy not found on agent`:
-1. Trivy is now required for image security scanning.
-2. Rebuild Jenkins custom image from `Dockerfile.jenkins` and restart container.
-3. Confirm agent has `trivy --version`.
-4. If Jenkins still runs old image (`jenkins-local-tools`) after rebuild, recreate container with the new tag (`jenkins-local-tools:trivy`).
-5. Example recreate command:
-	1. `docker stop jenkins && docker rm jenkins && docker run -d --name jenkins -u root --restart unless-stopped -p 8081:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.kube:/var/jenkins_home/.kube:ro jenkins-local-tools:trivy`
-
-Jenkins post step fails with `permission denied while trying to connect to the docker API`:
-1. Container has Docker CLI but lacks Docker socket permission.
-2. For local setup, run Jenkins container as root (`-u root`) with socket mount:
-	1. `-v /var/run/docker.sock:/var/run/docker.sock`
-
-Install step fails with `npm ci can only install with an existing package-lock.json`:
-1. Jenkins may be building an older commit or stale workspace.
-2. Ensure latest commit is pushed to `master`.
-3. In Jenkins job, build the latest revision and optionally wipe workspace once.
-4. Confirm `package-lock.json` exists in the checked-out commit.
-
-Trivy stage fails pipeline:
-1. Pipeline now uses Trivy as a security gate.
-2. Build fails when HIGH/CRITICAL vulnerabilities are detected.
-3. Resolve vulnerabilities in dependencies/base image, then rebuild.
-
-Jenkins runs from repo root and cannot find app `package.json` (for example `npm ERR! enoent` or `npm ci` fails in nested layout):
-1. This repository checks out with app files under `bug-report-portal/`.
-2. In Jenkinsfile, run app stages inside `dir("${APP_DIR}")`.
-3. Keep `APP_DIR = "bug-report-portal"` in pipeline environment.
-4. Rebuild once after updating Jenkinsfile so workspace uses latest pipeline.
-
-## 13. Production Improvement Checklist
-
-1. Add reverse proxy with TLS.
-2. Replace demo auth with SSO/IdP.
-3. Use managed PostgreSQL and backups.
-4. Add monitoring, logs, and alerts.
-5. Add CI with automated tests.
-
-## 14. DevOps Assets Added
-
-1. Jenkins pipeline: [Jenkinsfile](Jenkinsfile)
-2. Sonar scanner config: [sonar-project.properties](sonar-project.properties)
-3. Kubernetes manifests: [k8s/kustomization.yaml](k8s/kustomization.yaml)
-4. Local Kubernetes runbook: [LOCAL_K8S_STEPS.md](LOCAL_K8S_STEPS.md)
-5. Production Kubernetes runbook: [PROD_K8S_STEPS.md](PROD_K8S_STEPS.md)
-
-### Quick local-first validation
-
-```bash
-# Build image
-docker build -t bug-report-portal:local .
-
-# Validate compose app
-docker compose up -d --build
-curl -I http://localhost:3000/login
-
-# Validate k8s manifests without applying
-kubectl apply -k k8s --dry-run=client
-```
-
-### Jenkins Pipeline Setup Notes
-
-Pipeline source:
-1. [Jenkinsfile](Jenkinsfile)
-
-Auto trigger behavior:
-1. Pipeline includes SCM polling every 2 minutes (`H/2 * * * *`).
-
-SonarQube secure setup:
-1. Create a Jenkins credential of type `Secret text` containing your Sonar token.
-2. Use that credential ID in pipeline parameter `SONAR_TOKEN_CREDENTIALS_ID`.
-3. Set `SONAR_HOST_URL` (for example `http://localhost:9000`) when you want scan enabled.
-4. If either value is empty, Sonar stage is skipped.
-
-Deploy stage prerequisites:
-1. `DO_DEPLOY=true` requires `kubectl` on Jenkins agent.
-2. Agent must have kubeconfig/context access to your target cluster.
-3. Deploy stage applies manifests and then updates deployment image to `${IMAGE_NAME}:${IMAGE_TAG or BUILD_NUMBER}`.
-
-Recommended first pipeline run:
-1. `DO_PUSH=false`
-2. `DO_DEPLOY=false`
-3. Add Sonar and deploy only after base build passes.
-
-Parameter behavior guide (why many defaults are false):
-1. `false` defaults keep first runs safe by preventing accidental push, deploy, or extra gates before environment setup is ready.
-2. Set a parameter to `true` only when that dependency is configured on Jenkins agent.
-
-When to set each parameter:
-1. `DO_PUSH`
-	1. `false`: CI validation only.
-	2. `true`: push image after build (requires registry login).
-2. `DO_DEPLOY`
-	1. `false`: no cluster changes.
-	2. `true`: deploy/update image in Kubernetes (requires `kubectl` + kubeconfig).
-3. `RUN_SONAR`
-	1. `false`: skip analysis.
-	2. `true`: run SonarQube scan (`SONAR_HOST_URL` + `SONAR_TOKEN_CREDENTIALS_ID` required).
-4. `RUN_POST_DEPLOY_TESTS`
-	1. `false`: skip smoke checks.
-	2. `true`: run post-deploy smoke tests.
-5. `RUN_UI_E2E`
-	1. `false`: skip UI automation.
-	2. `true`: run post-deploy UI tests using `E2E_COMMAND`.
-6. `E2E_COMMAND`
-	1. Empty when `RUN_UI_E2E=false`.
-	2. Set command when `RUN_UI_E2E=true` (example: `npm run test:e2e`).
-
-Suggested run profiles:
-1. First Jenkins validation:
-	1. `DO_PUSH=false`, `DO_DEPLOY=false`, `RUN_SONAR=false`, `RUN_POST_DEPLOY_TESTS=false`, `RUN_UI_E2E=false`
-2. CI + quality:
-	1. `DO_PUSH=false`, `DO_DEPLOY=false`, `RUN_SONAR=true`
-3. Staging gate:
-	1. `DO_DEPLOY=true`, `RUN_POST_DEPLOY_TESTS=true`, optional `RUN_UI_E2E=true`
-4. Full realistic flow:
-	1. `DO_PUSH=true`, `DO_DEPLOY=true`, `RUN_SONAR=true`, `RUN_POST_DEPLOY_TESTS=true`, `RUN_UI_E2E=true`
-
-### Manual Local Jenkins Setup Checklist
-
-Pre-checks:
-
-```bash
-cd /Users/demu/projects
-docker info >/dev/null && echo Docker OK
-lsof -nP -iTCP:8081 -sTCP:LISTEN || true
-lsof -nP -iTCP:9000 -sTCP:LISTEN || true
-lsof -nP -iTCP:50000 -sTCP:LISTEN || true
-curl -I https://updates.jenkins.io/current/update-center.json
-curl -I https://get.jenkins.io/plugins/
-```
-
-Install Jenkins:
-
-```bash
-docker volume create jenkins_home
-docker run -d --name jenkins --restart unless-stopped -p 8081:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.kube:/var/jenkins_home/.kube:ro jenkins/jenkins:lts-jdk17
-docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
-```
-
-UI setup flow:
-1. Open `http://localhost:8081` and unlock Jenkins.
-2. Try Install Suggested Plugins first.
-3. If plugin installation fails, use Select plugins to install and start with Pipeline, Git, Credentials Binding, Timestamper, and ANSI Color.
-4. After first login, install Docker Pipeline, SonarQube Scanner for Jenkins, NodeJS, and optional GitHub Integration from Available plugins.
-
-SCM auth setup (recommended local path: HTTPS + PAT):
-1. Create GitHub Fine-grained PAT with repository access to `bugreportportal` and `Contents` read permission.
-2. In Jenkins: Manage Jenkins -> Credentials -> Global -> Add Credentials.
-3. Use Kind `Username with password`:
-	1. Username: your GitHub username
-	2. Password: PAT token
-	3. ID: `github-pat`
-4. In job SCM config:
-	1. Repository URL: `https://github.com/ravi2342/bugreportportal.git`
-	2. Credentials: `github-pat`
-5. Re-run pipeline; checkout should pass.
-
-Note: GitHub account password does not work for Git checkout. Use PAT (HTTPS) or SSH keys.
+**For setup:** See [QUICKSTART.md](QUICKSTART.md)  
+**For details:** See [SETUP_GUIDE.md](SETUP_GUIDE.md)
