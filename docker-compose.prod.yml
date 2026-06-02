@@ -1,0 +1,12 @@
+services:
+  db:
+    restart: always
+    ports: !reset []
+
+  app:
+    restart: always
+    container_name: !reset null
+    env_file:
+      - .env.docker
+    environment: !reset
+      PRISMA_CLIENT_ENGINE_TYPE: binary
