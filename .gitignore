@@ -10,3 +10,7 @@ coverage/
 dist/
 build/
 *.log
+
+# Local test/runtime data (cleaned by tests)
+data/bugReports.json
+data/reportComments.json
