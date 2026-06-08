@@ -635,44 +635,51 @@ app.post('/report/:id/update', async (req, res) => {
     const existing = await prisma.bugReport.findUnique({ where: { id } });
     if (!existing) return res.status(404).send('Incident not found');
 
-    const nextStatus = data.status !== undefined ? String(data.status).toUpperCase() : String(existing.status || 'OPEN').toUpperCase();
-    const existingStatus = String(existing.status || 'OPEN').toUpperCase();
-    const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (existing.assignee || null);
-
-    // Validate status transition
-    if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
-      const reopenUrl = withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.');
-      return res.redirect(reopenUrl);
-    }
-
-    const doneValidationError = validateDoneTransition({
-      existingStatus,
-      existingAssignee: effectiveAssignee,
-      nextStatus
-    });
-    if (doneValidationError) {
-      const validationUrl = withToast(`/report/${id}`, 'warning', doneValidationError);
-      return res.redirect(validationUrl);
-    }
-
-    const updated = await prisma.bugReport.update({ where: { id }, data });
-    const changes = buildChangesSummary(existing, updated, data);
-    
-    await logActivity(prisma, {
-      reportId: id,
-      actor: getActor(req),
-      action: 'Incident updated',
-      details: changes.length ? changes.join(' | ') : 'Fields updated'
-    });
-    
-    if (global.io) global.io.emit('report-updated', updated);
-    const successUrl = withToast(`/report/${id}`, 'success', 'Incident details updated.');
-    return res.redirect(successUrl);
+    return await performReportUpdate(id, existing, data, req, prisma, res);
   } catch (err) {
     console.error('Error updating incident details:', err.message || err);
     return handleReportUpdateFallback(id, req, data, res);
   }
 });
+
+// Helper: Perform report update with validation
+async function performReportUpdate(id, existing, data, req, prisma, res) {
+  const nextStatus = data.status !== undefined ? String(data.status).toUpperCase() : String(existing.status || 'OPEN').toUpperCase();
+  const existingStatus = String(existing.status || 'OPEN').toUpperCase();
+  const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (existing.assignee || null);
+
+  // Check reopening
+  if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+    const reopenUrl = withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.');
+    return res.redirect(reopenUrl);
+  }
+
+  // Validate done transition
+  const doneValidationError = validateDoneTransition({
+    existingStatus,
+    existingAssignee: effectiveAssignee,
+    nextStatus
+  });
+  if (doneValidationError) {
+    const validationUrl = withToast(`/report/${id}`, 'warning', doneValidationError);
+    return res.redirect(validationUrl);
+  }
+
+  // Execute update
+  const updated = await prisma.bugReport.update({ where: { id }, data });
+  const changes = buildChangesSummary(existing, updated, data);
+  
+  await logActivity(prisma, {
+    reportId: id,
+    actor: getActor(req),
+    action: 'Incident updated',
+    details: changes.length ? changes.join(' | ') : 'Fields updated'
+  });
+  
+  if (global.io) global.io.emit('report-updated', updated);
+  const successUrl = withToast(`/report/${id}`, 'success', 'Incident details updated.');
+  return res.redirect(successUrl);
+}
 
 // Helper: Handle report update in JSON fallback mode
 function handleReportUpdateFallback(id, req, data, res) {
