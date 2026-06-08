@@ -245,14 +245,8 @@ function applyIncidentFilters(reports, { filter, status, assignee, currentUser }
     filtered = filtered.filter(r => !r.assignee || r.assignee.trim() === '');
   }
   
-  if (status) {
-    filtered = applyStatusFilter(filtered, status);
-  }
-  
-  if (assignee) {
-    filtered = applyAssigneeFilter(filtered, assignee);
-  }
-  
+  if (status) filtered = applyStatusFilter(filtered, status);
+  if (assignee) filtered = applyAssigneeFilter(filtered, assignee);
   return filtered;
 }
 
@@ -625,7 +619,8 @@ app.post('/report/:id/update', async (req, res) => {
 
   const data = prepareReportUpdateData(req.body);
   if (Object.keys(data).length === 0) {
-    return res.redirect(withToast(`/report/${id}`, 'warning', 'No changes detected.'));
+    const noChangesUrl = withToast(`/report/${id}`, 'warning', 'No changes detected.');
+    return res.redirect(noChangesUrl);
   }
 
   try {
@@ -639,7 +634,8 @@ app.post('/report/:id/update', async (req, res) => {
 
     // Validate status transition
     if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
-      return res.redirect(withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.'));
+      const reopenUrl = withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.');
+      return res.redirect(reopenUrl);
     }
 
     const doneValidationError = validateDoneTransition({
@@ -648,7 +644,8 @@ app.post('/report/:id/update', async (req, res) => {
       nextStatus
     });
     if (doneValidationError) {
-      return res.redirect(withToast(`/report/${id}`, 'warning', doneValidationError));
+      const validationUrl = withToast(`/report/${id}`, 'warning', doneValidationError);
+      return res.redirect(validationUrl);
     }
 
     const updated = await prisma.bugReport.update({ where: { id }, data });
@@ -662,7 +659,8 @@ app.post('/report/:id/update', async (req, res) => {
     });
     
     if (global.io) global.io.emit('report-updated', updated);
-    return res.redirect(withToast(`/report/${id}`, 'success', 'Incident details updated.'));
+    const successUrl = withToast(`/report/${id}`, 'success', 'Incident details updated.');
+    return res.redirect(successUrl);
   } catch (err) {
     console.error('Error updating incident details:', err.message || err);
     return handleReportUpdateFallback(id, req, data, res);
@@ -677,44 +675,49 @@ function handleReportUpdateFallback(id, req, data, res) {
     if (idx === -1) return res.status(404).send('Report not found');
 
     const report = reports[idx];
-    const existingStatus = String(report.status || 'OPEN').toUpperCase();
-    const nextStatus = data.status !== undefined ? String(data.status).toUpperCase() : existingStatus;
-    const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (report.assignee || null);
-
-    // Validate status transition
-    if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
-      return res.redirect(withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.'));
+    const validationError = validateStatusTransitionForUpdate(report, data);
+    if (validationError) {
+      const toastUrl = withToast(`/report/${id}`, 'warning', validationError);
+      return res.redirect(toastUrl);
     }
 
-    const doneValidationError = validateDoneTransition({
-      existingStatus,
-      existingAssignee: effectiveAssignee,
-      nextStatus
-    });
-    if (doneValidationError) {
-      return res.redirect(withToast(`/report/${id}`, 'warning', doneValidationError));
-    }
-
-    // Apply updates
-    if (data.title !== undefined) reports[idx].title = data.title;
-    if (data.description !== undefined) reports[idx].description = data.description;
-    if (data.priority !== undefined) reports[idx].priority = data.priority;
-    if (data.assignee !== undefined) reports[idx].assignee = data.assignee;
-    if (data.status !== undefined) {
-      reports[idx].status = data.status;
-      if (DONE_STATUSES.includes(String(data.status).toUpperCase())) {
-        reports[idx].resolvedAt = new Date().toISOString();
-      }
-    }
-    reports[idx].updatedAt = new Date().toISOString();
+    applyReportUpdates(reports[idx], data);
     saveFallbackReports(reports);
     
     if (global.io) global.io.emit('report-updated', reports[idx]);
-    return res.redirect(withToast(`/report/${id}`, 'success', 'Incident details updated.'));
+    const successUrl = withToast(`/report/${id}`, 'success', 'Incident details updated.');
+    return res.redirect(successUrl);
   } catch (e2) {
     console.error('Fallback incident update failed:', e2.message || e2);
     return res.status(500).send('Database unavailable');
   }
+}
+
+// Helper: Validate status transition for fallback update
+function validateStatusTransitionForUpdate(report, data) {
+  const existingStatus = String(report.status || 'OPEN').toUpperCase();
+  const nextStatus = data.status !== undefined ? String(data.status).toUpperCase() : existingStatus;
+  const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (report.assignee || null);
+
+  if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+    return 'Closed incidents cannot be reopened.';
+  }
+  return validateDoneTransition({ existingStatus, existingAssignee: effectiveAssignee, nextStatus });
+}
+
+// Helper: Apply update fields to report
+function applyReportUpdates(report, data) {
+  if (data.title !== undefined) report.title = data.title;
+  if (data.description !== undefined) report.description = data.description;
+  if (data.priority !== undefined) report.priority = data.priority;
+  if (data.assignee !== undefined) report.assignee = data.assignee;
+  if (data.status !== undefined) {
+    report.status = data.status;
+    if (DONE_STATUSES.includes(String(data.status).toUpperCase())) {
+      report.resolvedAt = new Date().toISOString();
+    }
+  }
+  report.updatedAt = new Date().toISOString();
 }
 
 app.post('/report/:id/attachment', upload.single('screenshot'), async (req, res) => {
