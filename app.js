@@ -1015,4 +1015,20 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-module.exports = { app, server };
+module.exports = {
+  app,
+  server,
+  isAuthenticatedUser,
+  readFallbackReports,
+  saveFallbackReports,
+  appendFallbackReport,
+  readFallbackComments,
+  appendFallbackComment,
+  toStatusLabel,
+  validateDoneTransition,
+  getSlaTargetHours,
+  buildSlaSummary,
+  withToast,
+  prepareReportUpdateData,
+  buildChangesSummary
+};
