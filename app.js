@@ -372,6 +372,13 @@ function buildChangesSummary(existing, updated, data) {
   return changes;
 }
 
+// Helper: Format activity details for newly created report
+function formatCreateActivityDetails(report) {
+  const priority = `Priority ${report.priority}`;
+  const assignee = report.assignee ? ` | Assigned to ${report.assignee}` : '';
+  return priority + assignee;
+}
+
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -683,8 +690,8 @@ function handleReportUpdateFallback(id, req, data, res) {
 
     applyReportUpdates(reports[idx], data);
     saveFallbackReports(reports);
-    
     if (global.io) global.io.emit('report-updated', reports[idx]);
+    
     const successUrl = withToast(`/report/${id}`, 'success', 'Incident details updated.');
     return res.redirect(successUrl);
   } catch (e2) {
@@ -713,9 +720,8 @@ function applyReportUpdates(report, data) {
   if (data.assignee !== undefined) report.assignee = data.assignee;
   if (data.status !== undefined) {
     report.status = data.status;
-    if (DONE_STATUSES.includes(String(data.status).toUpperCase())) {
-      report.resolvedAt = new Date().toISOString();
-    }
+    const isNowDone = DONE_STATUSES.includes(String(data.status).toUpperCase());
+    if (isNowDone) report.resolvedAt = new Date().toISOString();
   }
   report.updatedAt = new Date().toISOString();
 }
@@ -946,11 +952,12 @@ app.post('/report', upload.single('screenshot'), async (req, res) => {
     console.log('🔄 [POST /report] Creating new report in Prisma database...');
     const prisma = getPrisma();
     const created = await prisma.bugReport.create({ data: payload });
+    const activityDetails = formatCreateActivityDetails(created);
     await logActivity(prisma, {
       reportId: created.id,
       actor: reporterName,
       action: 'Incident created',
-      details: `Priority ${created.priority}${created.assignee ? ` | Assigned to ${created.assignee}` : ''}`
+      details: activityDetails
     });
     console.log('✅ [POST /report] Report created successfully with ID:', created.id);
     if (global.io) global.io.emit('new-report', created);
