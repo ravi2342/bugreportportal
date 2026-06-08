@@ -26,33 +26,33 @@ function getTestCookie() {
 
 describe('Bug Report Portal - Login & Authentication', () => {
   test('GET /login should render login page when not authenticated', async () => {
-    const response = await request(app)
+    const res = await request(app)
       .get('/login')
       .expect(200);
-    expect(response.text).toContain('login');
+    expect(res.text).toContain('login');
   });
 
   test('POST /login should fail with missing credentials', async () => {
-    const response = await request(app)
+    const res = await request(app)
       .post('/login')
       .send({ username: '', password: '' })
       .expect(400);
-    expect(response.text).toContain('enter both username and password');
+    expect(res.text).toContain('enter both username and password');
   });
 
   test('POST /login should fail with invalid credentials', async () => {
-    const response = await request(app)
+    const res = await request(app)
       .post('/login')
       .send({ username: 'wronguser', password: 'wrongpass' })
       .expect(401);
-    expect(response.text).toContain('Invalid username or password');
+    expect(res.text).toContain('Invalid username or password');
   });
 
   test('POST /logout should clear auth cookie', async () => {
-    const response = await request(app)
+    const res = await request(app)
       .post('/logout')
       .expect(302);
-    expect(response.headers['set-cookie']).toBeDefined();
+    expect(res.headers['set-cookie']).toBeDefined();
   });
 });
 
@@ -61,43 +61,43 @@ describe('Bug Report Portal - Dashboard & Incidents', () => {
   afterEach(() => cleanTestData());
 
   test('GET / should redirect to /dashboard', async () => {
-    const response = await request(app)
+    const res = await request(app)
       .get('/')
       .expect(302);
-    expect(response.headers.location).toContain('dashboard');
+    expect(res.headers.location).toContain('dashboard');
   });
 
   test('GET /dashboard should redirect to login when not authenticated', async () => {
-    const response = await request(app)
+    const res = await request(app)
       .get('/dashboard')
       .expect(302);
-    expect(response.headers.location).toContain('login');
+    expect(res.headers.location).toContain('login');
   });
 
   test('GET /incidents should redirect to login when not authenticated', async () => {
-    const response = await request(app)
+    const res = await request(app)
       .get('/incidents')
       .expect(302);
-    expect(response.headers.location).toContain('login');
+    expect(res.headers.location).toContain('login');
   });
 
   test('GET /incidents/create should redirect to login when not authenticated', async () => {
-    const response = await request(app)
+    const res = await request(app)
       .get('/incidents/create')
       .expect(302);
-    expect(response.headers.location).toContain('login');
+    expect(res.headers.location).toContain('login');
   });
 });
 
 describe('Bug Report Portal - Search', () => {
   test('GET /search without query should show all incidents', async () => {
-    const response = await request(app)
+    await request(app)
       .get('/search')
       .expect(302); // Redirects to login
   });
 
   test('GET /search with query should search incidents', async () => {
-    const response = await request(app)
+    await request(app)
       .get('/search?q=test')
       .expect(302); // Redirects to login
   });
@@ -105,13 +105,13 @@ describe('Bug Report Portal - Search', () => {
 
 describe('Bug Report Portal - Report Operations', () => {
   test('GET /report/:id with invalid ID should return 400', async () => {
-    const response = await request(app)
+    await request(app)
       .get('/report/invalid')
       .expect(302); // Redirects to login or 400 depending on auth
   });
 
   test('POST /report with missing title should handle gracefully', async () => {
-    const response = await request(app)
+    await request(app)
       .post('/report')
       .send({ description: 'test' })
       .expect(302); // Redirects to login
@@ -124,8 +124,7 @@ describe('Validation Functions', () => {
     toStatusLabel,
     validateDoneTransition,
     getSlaTargetHours,
-    buildSlaSummary,
-    getActor
+    buildSlaSummary
   } = require('../app');
 
   test('isAuthenticatedUser should identify authenticated users', () => {
@@ -184,7 +183,6 @@ describe('File Storage Helpers', () => {
     saveFallbackReports,
     appendFallbackReport,
     readFallbackComments,
-    saveFallbackComments,
     appendFallbackComment
   } = require('../utils/file-helpers');
 
@@ -230,7 +228,7 @@ describe('File Storage Helpers', () => {
 });
 
 describe('Database Helpers', () => {
-  const { getAllReports, withDatabaseFallback } = require('../utils/db-helpers');
+  const { withDatabaseFallback } = require('../utils/db-helpers');
 
   test('withDatabaseFallback should call fallback on error', async () => {
     const dbOp = () => Promise.reject(new Error('DB error'));
@@ -251,7 +249,7 @@ describe('Database Helpers', () => {
 
 describe('Security & Input Validation', () => {
   test('should sanitize user input in forms', async () => {
-    const response = await request(app)
+    await request(app)
       .post('/report')
       .send({
         title: '<script>alert("xss")</script>',
@@ -262,7 +260,7 @@ describe('Security & Input Validation', () => {
   });
 
   test('should prevent ID injection attacks', async () => {
-    const response = await request(app)
+    await request(app)
       .get('/report/999; DROP TABLE bugReports;--')
       .expect(302);
   });
@@ -270,7 +268,7 @@ describe('Security & Input Validation', () => {
 
 describe('Error Handling', () => {
   test('should handle malformed JSON gracefully', async () => {
-    const response = await request(app)
+    await request(app)
       .get('/incidents')
       .expect(302); // Redirects to login
   });
