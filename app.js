@@ -201,6 +201,183 @@ async function logActivity(prismaClient, { reportId, actor, action, details }) {
   }
 }
 
+// Helper: Calculate dashboard KPIs
+function calculateDashboardKPIs(reports) {
+  const kpiOpen = reports.filter(r => (r.status || 'OPEN') === 'OPEN').length;
+  const kpiInProgress = reports.filter(r => r.status === 'IN_PROGRESS').length;
+  const kpiDone = reports.filter(r => DONE_STATUSES.includes((r.status || '').toUpperCase())).length;
+  return { kpiOpen, kpiInProgress, kpiDone };
+}
+
+// Helper: Build team breakdown data for charts
+function buildTeamBreakdown(reports) {
+  const teamCountMap = new Map();
+  for (const r of reports) {
+    const key = r.assignee && r.assignee.trim() !== '' ? r.assignee.trim() : 'unassigned';
+    teamCountMap.set(key, (teamCountMap.get(key) || 0) + 1);
+  }
+  const teamKeys = Array.from(teamCountMap.keys());
+  const teamLabels = teamKeys.map(formatTeamLabel);
+  const teamCounts = teamKeys.map(k => teamCountMap.get(k));
+  return { teamKeys, teamLabels, teamCounts };
+}
+
+// Helper: Format team label for display
+function formatTeamLabel(key) {
+  const labelMap = {
+    'support-team': 'Support Team',
+    'dev-team': 'Development Team',
+    'qa-team': 'QA Team',
+    'unassigned': 'Unassigned'
+  };
+  return labelMap[key] || key;
+}
+
+// Helper: Apply incident filters
+function applyIncidentFilters(reports, { filter, status, assignee, currentUser }) {
+  let filtered = reports;
+  
+  if (filter === 'myIncidents') {
+    filtered = filtered.filter(r => r.reporter === currentUser);
+  } else if (filter === 'assigned') {
+    filtered = filtered.filter(r => r.assignee && r.assignee.trim() !== '');
+  } else if (filter === 'unassigned') {
+    filtered = filtered.filter(r => !r.assignee || r.assignee.trim() === '');
+  }
+  
+  if (status) {
+    filtered = applyStatusFilter(filtered, status);
+  }
+  
+  if (assignee) {
+    filtered = applyAssigneeFilter(filtered, assignee);
+  }
+  
+  return filtered;
+}
+
+// Helper: Filter by status
+function applyStatusFilter(reports, status) {
+  const statusLower = status.toLowerCase();
+  if (statusLower === 'open') {
+    return reports.filter(r => (r.status || 'OPEN').toUpperCase() === 'OPEN');
+  }
+  if (statusLower === 'done') {
+    return reports.filter(r => DONE_STATUSES.includes((r.status || '').toUpperCase()));
+  }
+  return reports.filter(r => (r.status || 'OPEN').toLowerCase() === statusLower);
+}
+
+// Helper: Filter by assignee
+function applyAssigneeFilter(reports, assignee) {
+  if (assignee === 'unassigned') {
+    return reports.filter(r => !r.assignee || r.assignee.trim() === '');
+  }
+  return reports.filter(r => (r.assignee || '').trim() === assignee);
+}
+
+// Helper: Compute current view label for incidents
+function getIncidentsViewLabel(filter, status, assignee, currentUser) {
+  if (assignee) {
+    if (assignee === 'unassigned') return 'Unassigned Incidents';
+    if (currentUser && assignee === currentUser) return 'Assigned to Me';
+    return `Assigned to ${assignee}`;
+  }
+  
+  if (status) {
+    const statusMap = {
+      'open': 'New Incidents',
+      'in_progress': 'In Progress',
+      'done': 'Done Incidents'
+    };
+    if (statusMap[status.toLowerCase()]) return statusMap[status.toLowerCase()];
+    return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+  
+  const filterMap = {
+    'myIncidents': 'Opened by Me',
+    'assigned': 'Assigned Incidents',
+    'unassigned': 'Unassigned Incidents'
+  };
+  return filterMap[filter] || 'All Incidents';
+}
+
+// Helper: Search for matching reports
+function searchReports(reports, query) {
+  if (!query) return reports;
+  
+  const queryLower = query.toLowerCase();
+  const ticketQuery = query.replace(/^#/, '');
+  const isTicketIdQuery = /^#?\d+$/.test(query);
+
+  if (isTicketIdQuery) {
+    const ticketId = Number(ticketQuery);
+    return reports.filter(r => Number(r.id) === ticketId);
+  }
+
+  const keywords = queryLower
+    .replace(/[_-]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+
+  return reports.filter(r => {
+    const searchableText = [
+      r.id,
+      `#${r.id}`,
+      r.title || '',
+      r.description || '',
+      r.reporter || '',
+      r.assignee || '',
+      r.priority || '',
+      (r.status || '').replace(/_/g, ' ')
+    ]
+      .join(' ')
+      .toLowerCase();
+
+    return keywords.every(keyword => searchableText.includes(keyword));
+  });
+}
+
+// Helper: Validate and prepare report update data
+function prepareReportUpdateData(body) {
+  const data = {};
+  if (typeof body.title === 'string' && body.title.trim() !== '') {
+    data.title = body.title.trim();
+  }
+  if (typeof body.description === 'string' && body.description.trim() !== '') {
+    data.description = body.description.trim();
+  }
+  if (typeof body.priority === 'string' && body.priority.trim() !== '') {
+    data.priority = body.priority.trim();
+  }
+  if (body.assignee !== undefined) {
+    data.assignee = body.assignee && body.assignee.trim() !== '' ? body.assignee.trim() : null;
+  }
+  if (body.status && body.status.trim() !== '') {
+    data.status = body.status.trim();
+  }
+  return data;
+}
+
+// Helper: Build change summary for activity log
+function buildChangesSummary(existing, updated, data) {
+  const changes = [];
+  if (data.title !== undefined && data.title !== existing.title) changes.push('Title updated');
+  if (data.description !== undefined && data.description !== existing.description) changes.push('Description updated');
+  if (data.priority !== undefined && data.priority !== existing.priority) {
+    changes.push(`Priority ${existing.priority} -> ${updated.priority}`);
+  }
+  if (data.assignee !== undefined && (data.assignee || null) !== (existing.assignee || null)) {
+    const fromAssignee = existing.assignee || 'Unassigned';
+    const toAssignee = updated.assignee || 'Unassigned';
+    changes.push(`Assignee ${fromAssignee} -> ${toAssignee}`);
+  }
+  if (data.status !== undefined && data.status !== existing.status) {
+    changes.push(`Status ${toStatusLabel(existing.status)} -> ${toStatusLabel(updated.status)}`);
+  }
+  return changes;
+}
+
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -279,7 +456,7 @@ app.get('/', (req, res) => res.redirect('/dashboard'));
 // Dashboard page
 app.get('/dashboard', async (req, res) => {
   let reports = [];
-  let currentUser = req.currentUser;
+  const currentUser = req.currentUser;
   try {
     const prisma = getPrisma();
     console.log('🔄 [Dashboard] Fetching from Prisma database...');
@@ -290,44 +467,26 @@ app.get('/dashboard', async (req, res) => {
     console.log('⚠️ [Dashboard] Falling back to JSON file...');
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
-  // KPIs and chart data
-  const kpiOpen = reports.filter(r => (r.status || 'OPEN') === 'OPEN').length;
-  const kpiInProgress = reports.filter(r => r.status === 'IN_PROGRESS').length;
-  const kpiDone = reports.filter(r => DONE_STATUSES.includes((r.status || '').toUpperCase())).length;
-  // Team-wise assignment breakdown for pie chart
-  const teamCountMap = new Map();
-  for (const r of reports) {
-    const key = r.assignee && r.assignee.trim() !== '' ? r.assignee.trim() : 'unassigned';
-    teamCountMap.set(key, (teamCountMap.get(key) || 0) + 1);
-  }
-  const teamKeys = Array.from(teamCountMap.keys());
-  const teamLabels = teamKeys.map(k => {
-    if (k === 'support-team') return 'Support Team';
-    if (k === 'dev-team') return 'Development Team';
-    if (k === 'qa-team') return 'QA Team';
-    if (k === 'unassigned') return 'Unassigned';
-    return k;
-  });
-  const teamCounts = teamKeys.map(k => teamCountMap.get(k));
+  
+  const kpis = calculateDashboardKPIs(reports);
+  const teamData = buildTeamBreakdown(reports);
+  
   res.render('dashboard', {
     appName: app.locals.appName,
     currentUser,
-    kpiOpen,
-    kpiInProgress,
-    kpiDone,
-    teamKeys,
-    teamLabels,
-    teamCounts
+    ...kpis,
+    ...teamData
   });
 });
 
 // Incidents page with status filtering
 app.get('/incidents', async (req, res) => {
   let reports = [];
-  let filter = req.query.filter;
-  let status = req.query.status;
-  let assignee = req.query.assignee;
-  let currentUser = req.currentUser;
+  const filter = req.query.filter;
+  const status = req.query.status;
+  const assignee = req.query.assignee;
+  const currentUser = req.currentUser;
+  
   try {
     const prisma = getPrisma();
     console.log('🔄 [Incidents] Fetching from Prisma database...');
@@ -338,49 +497,10 @@ app.get('/incidents', async (req, res) => {
     console.log('⚠️ [Incidents] Falling back to JSON file...');
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
-  let filteredReports = reports;
-  if (filter === 'myIncidents') {
-    filteredReports = reports.filter(r => r.reporter === currentUser);
-  } else if (filter === 'assigned') {
-    filteredReports = reports.filter(r => r.assignee && r.assignee.trim() !== '');
-  } else if (filter === 'unassigned') {
-    filteredReports = reports.filter(r => !r.assignee || r.assignee.trim() === '');
-  }
-  if (status) {
-    if (status.toLowerCase() === 'open') {
-      filteredReports = filteredReports.filter(r => (r.status || 'OPEN').toUpperCase() === 'OPEN');
-    } else if (status.toLowerCase() === 'done') {
-      filteredReports = filteredReports.filter(r => DONE_STATUSES.includes((r.status || '').toUpperCase()));
-    } else {
-      filteredReports = filteredReports.filter(r => (r.status || 'OPEN').toLowerCase() === status.toLowerCase());
-    }
-  }
-  if (assignee) {
-    if (assignee === 'unassigned') {
-      filteredReports = filteredReports.filter(r => !r.assignee || r.assignee.trim() === '');
-    } else {
-      filteredReports = filteredReports.filter(r => (r.assignee || '').trim() === assignee);
-    }
-  }
-  let currentViewLabel = 'All Incidents';
-  if (assignee) {
-    currentViewLabel = assignee === 'unassigned'
-      ? 'Unassigned Incidents'
-      : currentUser && assignee === currentUser
-        ? 'Assigned to Me'
-        : `Assigned to ${assignee}`;
-  } else if (status) {
-    if (status.toLowerCase() === 'open') currentViewLabel = 'New Incidents';
-    else if (status.toLowerCase() === 'in_progress') currentViewLabel = 'In Progress';
-    else if (status.toLowerCase() === 'done') currentViewLabel = 'Done Incidents';
-    else currentViewLabel = status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  } else if (filter === 'myIncidents') {
-    currentViewLabel = 'Opened by Me';
-  } else if (filter === 'assigned') {
-    currentViewLabel = 'Assigned Incidents';
-  } else if (filter === 'unassigned') {
-    currentViewLabel = 'Unassigned Incidents';
-  }
+  
+  const filteredReports = applyIncidentFilters(reports, { filter, status, assignee, currentUser });
+  const currentViewLabel = getIncidentsViewLabel(filter, status, assignee, currentUser);
+  
   res.render('incidents', {
     appName: app.locals.appName,
     currentUser,
@@ -396,7 +516,7 @@ app.get('/incidents', async (req, res) => {
 app.get('/search', async (req, res) => {
   const query = (req.query.q || '').toString().trim();
   let reports = [];
-  let currentUser = req.currentUser;
+  const currentUser = req.currentUser;
   
   try {
     const prisma = getPrisma();
@@ -409,39 +529,8 @@ app.get('/search', async (req, res) => {
     reports = readFallbackReports().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
-  // Filter by search query
-  let filteredReports = reports;
+  const filteredReports = searchReports(reports, query);
   if (query) {
-    const queryLower = query.toLowerCase();
-    const ticketQuery = query.replace(/^#/, '');
-    const isTicketIdQuery = /^#?\d+$/.test(query);
-
-    if (isTicketIdQuery) {
-      const ticketId = Number(ticketQuery);
-      filteredReports = reports.filter(r => Number(r.id) === ticketId);
-    } else {
-      const keywords = queryLower
-        .replace(/[_-]+/g, ' ')
-        .split(/\s+/)
-        .filter(Boolean);
-
-      filteredReports = reports.filter(r => {
-        const searchableText = [
-          r.id,
-          `#${r.id}`,
-          r.title || '',
-          r.description || '',
-          r.reporter || '',
-          r.assignee || '',
-          r.priority || '',
-          (r.status || '').replace(/_/g, ' ')
-        ]
-          .join(' ')
-          .toLowerCase();
-
-        return keywords.every(keyword => searchableText.includes(keyword));
-      });
-    }
     console.log('🔍 [Search] Found', filteredReports.length, 'matching reports');
   }
 
@@ -532,15 +621,9 @@ app.post('/report/:id/comments', async (req, res) => {
 
 app.post('/report/:id/update', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { title, description, priority, assignee, status } = req.body;
   if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid request' });
 
-  const data = {};
-  if (typeof title === 'string' && title.trim() !== '') data.title = title.trim();
-  if (typeof description === 'string' && description.trim() !== '') data.description = description.trim();
-  if (typeof priority === 'string' && priority.trim() !== '') data.priority = priority.trim();
-  if (assignee !== undefined) data.assignee = assignee && assignee.trim() !== '' ? assignee.trim() : null;
-  if (status && status.trim() !== '') data.status = status.trim();
+  const data = prepareReportUpdateData(req.body);
   if (Object.keys(data).length === 0) {
     return res.redirect(withToast(`/report/${id}`, 'warning', 'No changes detected.'));
   }
@@ -554,6 +637,7 @@ app.post('/report/:id/update', async (req, res) => {
     const existingStatus = String(existing.status || 'OPEN').toUpperCase();
     const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (existing.assignee || null);
 
+    // Validate status transition
     if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
       return res.redirect(withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.'));
     }
@@ -567,74 +651,71 @@ app.post('/report/:id/update', async (req, res) => {
       return res.redirect(withToast(`/report/${id}`, 'warning', doneValidationError));
     }
 
-    const updated = await prisma.bugReport.update({
-      where: { id },
-      data
-    });
-    const changes = [];
-    if (existing) {
-      if (data.title !== undefined && data.title !== existing.title) changes.push('Title updated');
-      if (data.description !== undefined && data.description !== existing.description) changes.push('Description updated');
-      if (data.priority !== undefined && data.priority !== existing.priority) changes.push(`Priority ${existing.priority} -> ${updated.priority}`);
-      if (data.assignee !== undefined && (data.assignee || null) !== (existing.assignee || null)) {
-        changes.push(`Assignee ${(existing.assignee || 'Unassigned')} -> ${(updated.assignee || 'Unassigned')}`);
-      }
-      if (data.status !== undefined && data.status !== existing.status) {
-        changes.push(`Status ${toStatusLabel(existing.status)} -> ${toStatusLabel(updated.status)}`);
-      }
-    }
+    const updated = await prisma.bugReport.update({ where: { id }, data });
+    const changes = buildChangesSummary(existing, updated, data);
+    
     await logActivity(prisma, {
       reportId: id,
       actor: getActor(req),
       action: 'Incident updated',
       details: changes.length ? changes.join(' | ') : 'Fields updated'
     });
+    
     if (global.io) global.io.emit('report-updated', updated);
     return res.redirect(withToast(`/report/${id}`, 'success', 'Incident details updated.'));
   } catch (err) {
     console.error('Error updating incident details:', err.message || err);
-    try {
-      const reports = readFallbackReports();
-      const idx = reports.findIndex(r => r.id === id);
-      if (idx !== -1) {
-        const existingStatus = String(reports[idx].status || 'OPEN').toUpperCase();
-        const nextStatus = data.status !== undefined ? String(data.status).toUpperCase() : existingStatus;
-        const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (reports[idx].assignee || null);
-
-        if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
-          return res.redirect(withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.'));
-        }
-
-        const doneValidationError = validateDoneTransition({
-          existingStatus,
-          existingAssignee: effectiveAssignee,
-          nextStatus
-        });
-        if (doneValidationError) {
-          return res.redirect(withToast(`/report/${id}`, 'warning', doneValidationError));
-        }
-
-        if (data.title !== undefined) reports[idx].title = data.title;
-        if (data.description !== undefined) reports[idx].description = data.description;
-        if (data.priority !== undefined) reports[idx].priority = data.priority;
-        if (data.assignee !== undefined) reports[idx].assignee = data.assignee;
-        if (data.status !== undefined) {
-          reports[idx].status = data.status;
-          if (DONE_STATUSES.includes(String(data.status).toUpperCase())) {
-            reports[idx].resolvedAt = new Date().toISOString();
-          }
-        }
-        reports[idx].updatedAt = new Date().toISOString();
-        saveFallbackReports(reports);
-        if (global.io) global.io.emit('report-updated', reports[idx]);
-      }
-      return res.redirect(withToast(`/report/${id}`, 'success', 'Incident details updated.'));
-    } catch (e2) {
-      console.error('Fallback incident update failed:', e2.message || e2);
-      return res.status(500).send('Database unavailable');
-    }
+    return handleReportUpdateFallback(id, req, data, res);
   }
 });
+
+// Helper: Handle report update in JSON fallback mode
+function handleReportUpdateFallback(id, req, data, res) {
+  try {
+    const reports = readFallbackReports();
+    const idx = reports.findIndex(r => r.id === id);
+    if (idx === -1) return res.status(404).send('Report not found');
+
+    const report = reports[idx];
+    const existingStatus = String(report.status || 'OPEN').toUpperCase();
+    const nextStatus = data.status !== undefined ? String(data.status).toUpperCase() : existingStatus;
+    const effectiveAssignee = data.assignee !== undefined ? (data.assignee || null) : (report.assignee || null);
+
+    // Validate status transition
+    if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+      return res.redirect(withToast(`/report/${id}`, 'warning', 'Closed incidents cannot be reopened.'));
+    }
+
+    const doneValidationError = validateDoneTransition({
+      existingStatus,
+      existingAssignee: effectiveAssignee,
+      nextStatus
+    });
+    if (doneValidationError) {
+      return res.redirect(withToast(`/report/${id}`, 'warning', doneValidationError));
+    }
+
+    // Apply updates
+    if (data.title !== undefined) reports[idx].title = data.title;
+    if (data.description !== undefined) reports[idx].description = data.description;
+    if (data.priority !== undefined) reports[idx].priority = data.priority;
+    if (data.assignee !== undefined) reports[idx].assignee = data.assignee;
+    if (data.status !== undefined) {
+      reports[idx].status = data.status;
+      if (DONE_STATUSES.includes(String(data.status).toUpperCase())) {
+        reports[idx].resolvedAt = new Date().toISOString();
+      }
+    }
+    reports[idx].updatedAt = new Date().toISOString();
+    saveFallbackReports(reports);
+    
+    if (global.io) global.io.emit('report-updated', reports[idx]);
+    return res.redirect(withToast(`/report/${id}`, 'success', 'Incident details updated.'));
+  } catch (e2) {
+    console.error('Fallback incident update failed:', e2.message || e2);
+    return res.status(500).send('Database unavailable');
+  }
+}
 
 app.post('/report/:id/attachment', upload.single('screenshot'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -718,72 +799,96 @@ app.post('/report/:id/status', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { status } = req.body;
   if (Number.isNaN(id) || !status) return res.status(400).json({ error: 'Invalid request' });
+  
   try {
     const prisma = getPrisma();
     const existing = await prisma.bugReport.findUnique({ where: { id }, select: { status: true, assignee: true } });
-    const existingStatus = (existing?.status || 'OPEN').toUpperCase();
-    const nextStatus = String(status).toUpperCase();
-    if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
-      return res.status(400).json({ error: 'Closed incidents cannot be reopened.' });
+    
+    // Validate status transition
+    const validationError = validateStatusTransition(existing, status);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
     }
-    const doneValidationError = validateDoneTransition({
-      existingStatus,
-      existingAssignee: existing?.assignee || null,
-      nextStatus
-    });
-    if (doneValidationError) {
-      return res.status(400).json({ error: doneValidationError });
-    }
+    
     const updated = await prisma.bugReport.update({
       where: { id },
       data: { status }
     });
+    
     await logActivity(prisma, {
       reportId: id,
       actor: getActor(req),
       action: 'Status changed',
       details: `${toStatusLabel(existing?.status || 'OPEN')} -> ${toStatusLabel(updated.status)}`
     });
+    
     if (global.io) global.io.emit('report-updated', updated);
     res.json({ success: true, report: updated });
   } catch (err) {
     console.error('Error updating status:', err.message || err);
-    // Fallback to file-backed storage when Prisma update not available
-    try {
-      const reports = readFallbackReports();
-      const idx = reports.findIndex(r => r.id === id);
-      if (idx !== -1) {
-        const existingStatus = String(reports[idx].status || 'OPEN').toUpperCase();
-        const nextStatus = String(status).toUpperCase();
-        if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
-          return res.status(400).json({ error: 'Closed incidents cannot be reopened.' });
-        }
-        const doneValidationError = validateDoneTransition({
-          existingStatus,
-          existingAssignee: reports[idx].assignee || null,
-          nextStatus
-        });
-        if (doneValidationError) {
-          return res.status(400).json({ error: doneValidationError });
-        }
-        reports[idx].status = status;
-        if (DONE_STATUSES.includes(nextStatus)) reports[idx].resolvedAt = new Date().toISOString();
-        reports[idx].updatedAt = new Date().toISOString();
-        saveFallbackReports(reports);
-        if (global.io) global.io.emit('report-updated', reports[idx]);
-        return res.json({ success: true, report: reports[idx] });
-      }
-    } catch (e2) {
-      console.error('Fallback update failed:', e2.message || e2);
-    }
-    res.status(500).json({ error: 'Database unavailable' });
+    return handleStatusUpdateFallback(id, status, res);
   }
 });
+
+// Helper: Validate status transition
+function validateStatusTransition(existing, nextStatusInput) {
+  const existingStatus = (existing?.status || 'OPEN').toUpperCase();
+  const nextStatus = String(nextStatusInput).toUpperCase();
+  
+  if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+    return 'Closed incidents cannot be reopened.';
+  }
+  
+  return validateDoneTransition({
+    existingStatus,
+    existingAssignee: existing?.assignee || null,
+    nextStatus
+  });
+}
+
+// Helper: Handle status update in JSON fallback mode
+function handleStatusUpdateFallback(id, status, res) {
+  try {
+    const reports = readFallbackReports();
+    const idx = reports.findIndex(r => r.id === id);
+    if (idx === -1) {
+      return res.status(500).json({ error: 'Database unavailable' });
+    }
+
+    const existingStatus = String(reports[idx].status || 'OPEN').toUpperCase();
+    const nextStatus = String(status).toUpperCase();
+    
+    if (DONE_STATUSES.includes(existingStatus) && !DONE_STATUSES.includes(nextStatus)) {
+      return res.status(400).json({ error: 'Closed incidents cannot be reopened.' });
+    }
+    
+    const doneValidationError = validateDoneTransition({
+      existingStatus,
+      existingAssignee: reports[idx].assignee || null,
+      nextStatus
+    });
+    if (doneValidationError) {
+      return res.status(400).json({ error: doneValidationError });
+    }
+    
+    reports[idx].status = status;
+    if (DONE_STATUSES.includes(nextStatus)) reports[idx].resolvedAt = new Date().toISOString();
+    reports[idx].updatedAt = new Date().toISOString();
+    saveFallbackReports(reports);
+    
+    if (global.io) global.io.emit('report-updated', reports[idx]);
+    return res.json({ success: true, report: reports[idx] });
+  } catch (e2) {
+    console.error('Fallback update failed:', e2.message || e2);
+    res.status(500).json({ error: 'Database unavailable' });
+  }
+}
 
 app.post('/report/:id/assign', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { assignee } = req.body;
   if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid request' });
+  
   try {
     const prisma = getPrisma();
     const existing = await prisma.bugReport.findUnique({ where: { id }, select: { assignee: true } });
@@ -791,33 +896,39 @@ app.post('/report/:id/assign', async (req, res) => {
       where: { id },
       data: { assignee: assignee || null }
     });
+    
     await logActivity(prisma, {
       reportId: id,
       actor: getActor(req),
       action: 'Assignee changed',
       details: `${existing?.assignee || 'Unassigned'} -> ${updated.assignee || 'Unassigned'}`
     });
+    
     if (global.io) global.io.emit('report-updated', updated);
     res.json({ success: true, report: updated });
   } catch (err) {
     console.error('Error updating assignee:', err.message || err);
-    // Fallback to file-backed storage when Prisma update not available
-    try {
-      const reports = readFallbackReports();
-      const idx = reports.findIndex(r => r.id === id);
-      if (idx !== -1) {
-        reports[idx].assignee = assignee || null;
-        reports[idx].updatedAt = new Date().toISOString();
-        saveFallbackReports(reports);
-        if (global.io) global.io.emit('report-updated', reports[idx]);
-        return res.json({ success: true, report: reports[idx] });
-      }
-    } catch (e2) {
-      console.error('Fallback assign failed:', e2.message || e2);
-    }
-    res.status(500).json({ error: 'Database unavailable' });
+    return handleAssigneeUpdateFallback(id, req.body.assignee, res);
   }
 });
+
+// Helper: Handle assignee update in JSON fallback mode
+function handleAssigneeUpdateFallback(id, assignee, res) {
+  try {
+    const reports = readFallbackReports();
+    const idx = reports.findIndex(r => r.id === id);
+    if (idx !== -1) {
+      reports[idx].assignee = assignee || null;
+      reports[idx].updatedAt = new Date().toISOString();
+      saveFallbackReports(reports);
+      if (global.io) global.io.emit('report-updated', reports[idx]);
+      return res.json({ success: true, report: reports[idx] });
+    }
+  } catch (e2) {
+    console.error('Fallback assign failed:', e2.message || e2);
+  }
+  res.status(500).json({ error: 'Database unavailable' });
+}
 
 app.post('/report', upload.single('screenshot'), async (req, res) => {
   const { title, description, priority, assignee } = req.body;
