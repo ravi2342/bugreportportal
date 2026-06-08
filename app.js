@@ -37,8 +37,8 @@ app.set('views', path.join(__dirname, 'views'));
 // Branding: App name for use in templates
 app.locals.appName = 'OpsCenter';
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser(AUTH_COOKIE_SECRET));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

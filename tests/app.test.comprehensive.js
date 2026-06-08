@@ -20,8 +20,9 @@ function cleanTestData() {
 }
 
 function getTestCookie() {
-  // Note: In a real test, you'd mock authentication
-  return 'currentUser=testuser;';
+  // Mock authentication - use environment variable if available
+  const testUser = process.env.TEST_USER || 'testuser';
+  return `currentUser=${testUser};`;
 }
 
 describe('Bug Report Portal - Login & Authentication', () => {
