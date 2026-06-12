@@ -768,7 +768,7 @@ describe('Bug Report Portal - Full Coverage Suite (45+ tests)', () => {
     });
 
     test('[PERSIST-5] Report with null and undefined values', () => {
-      const report = appendFallbackReport({
+      appendFallbackReport({
         title: 'Test',
         description: null,
         assignee: undefined,

@@ -1,5 +1,8 @@
 FROM node:24-alpine AS deps
 
+# Patch OS packages to address CVEs flagged by Trivy (libcrypto3/libssl3, etc.)
+RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -13,6 +16,9 @@ COPY prisma ./prisma
 RUN npx prisma generate
 
 FROM node:24-alpine AS runner
+
+# Patch OS packages to address CVEs flagged by Trivy (libcrypto3/libssl3, etc.)
+RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 

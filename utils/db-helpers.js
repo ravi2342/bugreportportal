@@ -3,7 +3,7 @@
  * Reduces duplication in Prisma operations with fallback to JSON file storage
  */
 
-const { readFallbackReports, saveFallbackReports, readFallbackComments, saveFallbackComments } = require('./file-helpers');
+const { readFallbackReports, saveFallbackReports, readFallbackComments } = require('./file-helpers');
 
 /**
  * Execute a Prisma database operation with automatic JSON file fallback
@@ -20,7 +20,7 @@ async function withDatabaseFallback(dbOperation, fallbackOperation, operationNam
     return result;
   } catch (error) {
     console.error(`❌ [DB] ${operationName} failed:`, error.message || error);
-    console.log(`⚠️ [DB] Falling back to JSON file storage...`);
+    console.log('⚠️ [DB] Falling back to JSON file storage...');
     try {
       const result = fallbackOperation();
       console.log(`✅ [DB] Fallback ${operationName} succeeded`);
@@ -39,7 +39,6 @@ async function withDatabaseFallback(dbOperation, fallbackOperation, operationNam
  * @param {Object} updateData - Data to update
  * @param {Function} logActivityFn - Function to log activity
  * @param {Object} io - Socket.IO instance
- * @param {Object} existingData - Original data for comparison
  * @returns {Promise<Object>} Updated report
  */
 async function updateReportWithNotification(
@@ -47,8 +46,7 @@ async function updateReportWithNotification(
   reportId,
   updateData,
   logActivityFn,
-  io,
-  existingData = {}
+  io
 ) {
   const updated = await prisma.bugReport.update({
     where: { id: reportId },
