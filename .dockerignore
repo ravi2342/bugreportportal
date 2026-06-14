@@ -21,4 +21,4 @@ data/*
 .eslintrc.json
 .eslintignore
 docs
-prisma/migrations
+
