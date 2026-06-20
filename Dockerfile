@@ -17,8 +17,13 @@ RUN npx prisma generate
 
 FROM node:24-alpine AS runner
 
-# Patch OS packages to address CVEs flagged by Trivy (libcrypto3/libssl3, etc.)
-RUN apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
+# Patch OS packages and remove the globally-installed npm CLI (its bundled
+# undici trips Trivy CVE-2026-12151; the runtime doesn't need npm because we
+# invoke Prisma directly via its local bin).
+RUN apk update && apk upgrade --no-cache && \
+	rm -rf /usr/local/lib/node_modules/npm \
+		   /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+		   /var/cache/apk/*
 
 WORKDIR /app
 
@@ -34,4 +39,4 @@ USER nodejs
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node app.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node app.js"]
