@@ -38,6 +38,8 @@ pipeline {
       description: 'SonarQube project key')
     string(name: 'SONAR_TOKEN_CREDENTIALS_ID', defaultValue: 'sonar-token',
       description: 'Jenkins credentials ID for the Sonar token')
+    choice(name: 'SONAR_EDITION', choices: ['community', 'developer'],
+      description: 'SonarQube edition. "community" disables branch/PR args (unsupported).')
     string(name: 'TRIVY_VERSION', defaultValue: '0.71.0',
       description: 'Trivy image tag for the fs scan')
   }
@@ -102,18 +104,21 @@ pipeline {
       }
       steps {
         script {
-          // Build PR-decoration args dynamically; shared-lib sonarScan
-          // accepts these via the `extraArgs` list and appends them to
-          // the sonar-scanner invocation.
+          // SonarQube Community Edition supports only a single main-branch
+          // analysis (no sonar.branch.name, no sonar.pullrequest.*). Enable
+          // those args only when SONAR_EDITION is set to "developer" or above.
           def extra = []
-          if (env.CHANGE_ID) {
-            extra = [
-              "-Dsonar.pullrequest.key=${env.CHANGE_ID}",
-              "-Dsonar.pullrequest.branch=${env.CHANGE_BRANCH}",
-              "-Dsonar.pullrequest.base=${env.CHANGE_TARGET}"
-            ]
-          } else if (env.BRANCH_NAME) {
-            extra = ["-Dsonar.branch.name=${env.BRANCH_NAME}"]
+          def edition = (params.SONAR_EDITION ?: 'community').toLowerCase()
+          if (edition != 'community') {
+            if (env.CHANGE_ID) {
+              extra = [
+                "-Dsonar.pullrequest.key=${env.CHANGE_ID}",
+                "-Dsonar.pullrequest.branch=${env.CHANGE_BRANCH}",
+                "-Dsonar.pullrequest.base=${env.CHANGE_TARGET}"
+              ]
+            } else if (env.BRANCH_NAME) {
+              extra = ["-Dsonar.branch.name=${env.BRANCH_NAME}"]
+            }
           }
 
           sonarScan(
