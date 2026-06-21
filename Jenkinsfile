@@ -5,9 +5,16 @@
 // BEFORE merge. No build, no push, no deploy — those run from the
 // devops repo's Jenkinsfile after merge to master.
 //
-// Configured as a Jenkins Multibranch Pipeline pointing at this repo;
-// PRs are auto-discovered and results posted as GitHub status checks.
+// Reuses the same shared library as the devops Jenkinsfile (pinned to
+// v1.1) so PR scans and master scans run identical commands. The PR
+// code is checked out into ./app/ to match the workspace layout the
+// shared-lib functions expect (workDir defaults to 'app').
+//
+// Configured as a Jenkins Multibranch Pipeline; PRs are auto-discovered
+// and results posted as GitHub status checks.
 // ========================================
+
+@Library('bug-report-portal-lib@v1.1') _
 
 pipeline {
   agent any
@@ -16,6 +23,10 @@ pipeline {
     timestamps()
     timeout(time: 30, unit: 'MINUTES')
     buildDiscarder(logRotator(numToKeepStr: '20'))
+    // We do our own checkout into app/ to mirror the layout the shared
+    // library expects. Without this, Jenkins would checkout at the
+    // workspace root and shared-lib `cd app` calls would fail.
+    skipDefaultCheckout(true)
   }
 
   parameters {
@@ -51,36 +62,36 @@ pipeline {
       }
     }
 
+    stage('Clean Workspace') {
+      steps {
+        deleteDir()
+      }
+    }
+
+    stage('Checkout Application') {
+      steps {
+        // `checkout scm` in a multibranch PR job resolves to the PR
+        // commit (or branch HEAD for branch builds). Drop it into app/
+        // so shared-lib functions like installDeps() and lintAndTest()
+        // (which do `cd app && ...`) work unchanged.
+        dir('app') {
+          checkout scm
+        }
+      }
+    }
+
     stage('Install Dependencies') {
       steps {
-        sh '''
-          set -e
-          node --version
-          npm --version
-          npm ci --no-audit --no-fund
-        '''
+        script {
+          installDeps()
+        }
       }
     }
 
-    stage('Lint') {
+    stage('Quality Gates') {
       steps {
-        sh 'npm run lint'
-      }
-    }
-
-    stage('Tests') {
-      steps {
-        sh '''
-          set -e
-          npm test -- --coverage --ci \
-            --coverageReporters=lcov \
-            --coverageReporters=text \
-            --coverageReporters=text-summary
-        '''
-      }
-      post {
-        always {
-          archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true, fingerprint: false
+        script {
+          lintAndTest()
         }
       }
     }
@@ -90,50 +101,41 @@ pipeline {
         expression { return params.RUN_SONAR && params.SONAR_HOST_URL?.trim() }
       }
       steps {
-        withCredentials([string(credentialsId: params.SONAR_TOKEN_CREDENTIALS_ID, variable: 'SONAR_TOKEN')]) {
-          script {
-            def scannerAvailable = sh(
-              script: 'command -v sonar-scanner >/dev/null 2>&1',
-              returnStatus: true
-            ) == 0
-            if (!scannerAvailable) {
-              echo "⚠ sonar-scanner not installed on agent - skipping"
-              return
-            }
-
-            // Static project properties (sources, exclusions, coverage path)
-            // come from sonar-project.properties in the repo root. We only
-            // override host/token and add PR-specific keys here.
-            def prArgs = ''
-            if (env.CHANGE_ID) {
-              prArgs = "-Dsonar.pullrequest.key=${env.CHANGE_ID} " +
-                       "-Dsonar.pullrequest.branch=${env.CHANGE_BRANCH} " +
-                       "-Dsonar.pullrequest.base=${env.CHANGE_TARGET}"
-            } else if (env.BRANCH_NAME) {
-              prArgs = "-Dsonar.branch.name=${env.BRANCH_NAME}"
-            }
-
-            sh """
-              set -e
-              sonar-scanner \\
-                -Dsonar.host.url=${params.SONAR_HOST_URL} \\
-                -Dsonar.projectKey=${params.SONAR_PROJECT_KEY} \\
-                -Dsonar.token=\${SONAR_TOKEN} \\
-                -Dsonar.qualitygate.wait=true \\
-                -Dsonar.qualitygate.timeout=300 \\
-                ${prArgs}
-            """
+        script {
+          // Build PR-decoration args dynamically; shared-lib sonarScan
+          // accepts these via the `extraArgs` list and appends them to
+          // the sonar-scanner invocation.
+          def extra = []
+          if (env.CHANGE_ID) {
+            extra = [
+              "-Dsonar.pullrequest.key=${env.CHANGE_ID}",
+              "-Dsonar.pullrequest.branch=${env.CHANGE_BRANCH}",
+              "-Dsonar.pullrequest.base=${env.CHANGE_TARGET}"
+            ]
+          } else if (env.BRANCH_NAME) {
+            extra = ["-Dsonar.branch.name=${env.BRANCH_NAME}"]
           }
+
+          sonarScan(
+            hostUrl: params.SONAR_HOST_URL,
+            projectKey: params.SONAR_PROJECT_KEY,
+            tokenCredId: params.SONAR_TOKEN_CREDENTIALS_ID,
+            waitForQualityGate: true,
+            extraArgs: extra
+          )
         }
       }
     }
 
     stage('Trivy Security Scan') {
       steps {
+        // Inline fs scan because the shared-lib trivyScan only scans
+        // built Docker images; PR builds intentionally do not build
+        // images. Reads package-lock.json for HIGH/CRITICAL CVEs.
         sh """
           set -e
           docker run --rm \\
-            -v \$PWD:/src \\
+            -v \$PWD/app:/src \\
             aquasec/trivy:${params.TRIVY_VERSION} fs \\
             --scanners vuln \\
             --severity HIGH,CRITICAL \\
