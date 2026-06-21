@@ -84,5 +84,5 @@ npm run eslint           # Lint code
 **For setup:** See [QUICKSTART.md](QUICKSTART.md)  
 **For details:** See [SETUP_GUIDE.md](SETUP_GUIDE.md)
 
-<!-- PR pipeline smoke test1 -->
+<!-- PR pipeline smoke test2-->
 
