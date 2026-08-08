@@ -1,6 +1,6 @@
 # OpsCenter Bug Report Portal
 
-Incident management system: create, track, and comment on incidents with real-time updates.
+Incident management system: create, track, and comment on incidents with real-time updates.  hi how are u 
 
 **Stack:** Node.js · Express · Prisma · PostgreSQL · EJS · Socket.IO
 
