@@ -39,6 +39,63 @@ pipeline (in the devops repo) runs **after** merge.
 
 ---
 
+## Two Status Checks Explained
+
+When you raise a PR, **2 Jenkins pipelines trigger automatically**. Both must pass ✅ before merging.
+
+### Pipeline 1: Branch Validation (`continuous-integration/jenkins/branch`)
+- **Scans:** Feature branch code in isolation
+- **Purpose:** Validate code quality before attempting merge
+- **Checks:**
+  - ESLint (code style)
+  - Jest tests (unit & integration tests)
+  - SonarQube analysis (code quality & coverage)
+  - Trivy security scan (HIGH/CRITICAL vulnerabilities)
+- **Time:** ~5-10 minutes
+- **Status Display:** `continuous-integration/jenkins/branch — This commit looks good` ✅
+
+### Pipeline 2: PR-Head Validation (`continuous-integration/jenkins/pr-head`)
+- **Scans:** Merged result (feature branch + master)
+- **Purpose:** Ensure code doesn't break master and has no merge conflicts
+- **Checks:** Same as Branch (lint, tests, SonarQube, Trivy on merged code)
+- **Time:** ~5-10 minutes
+- **Status Display:** `continuous-integration/jenkins/pr-head — This commit looks good` ✅
+
+### What This Means for Merging
+
+```
+Scenario 1: Both checks PASS ✅
+├─ Branch scan: ✅ PASS
+├─ PR-head scan: ✅ PASS
+└─ Result: Merge button ENABLED (if approved)
+
+Scenario 2: Branch FAILS, PR-head PASSES ❌
+├─ Branch scan: ❌ FAIL (code quality issue in feature)
+├─ PR-head scan: ✅ PASS
+└─ Result: Merge button DISABLED — Fix code quality issues
+
+Scenario 3: Branch PASSES, PR-head FAILS ❌
+├─ Branch scan: ✅ PASS
+├─ PR-head scan: ❌ FAIL (merge conflict or incompatible with master)
+└─ Result: Merge button DISABLED — Rebase onto latest master
+
+Scenario 4: Both FAIL ❌
+├─ Branch scan: ❌ FAIL
+├─ PR-head scan: ❌ FAIL
+└─ Result: Merge button DISABLED — Fix all issues
+```
+
+### Why Both Checks?
+
+| Aspect | Branch Check | PR-Head Check | Why Both? |
+|--------|--------------|---------------|----------|
+| **Validates isolated code** | ✅ | ✅ | Catch issues before merge |
+| **Catches merge conflicts** | ❌ | ✅ | Ensures compatibility with master |
+| **Tests with latest master** | ❌ | ✅ | Detects regressions caused by merge |
+| **Prevents stale code** | ✅ | ✅ | Double validation = safer merges |
+
+---
+
 ## Components
 
 ### Jenkins Multibranch Pipeline — `bugreportportal-pr`
