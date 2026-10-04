@@ -40,7 +40,7 @@ pipeline {
       description: 'Jenkins credentials ID for the Sonar token')
     choice(name: 'SONAR_EDITION', choices: ['community', 'developer'],
       description: 'SonarQube edition. "community" disables branch/PR args (unsupported).')
-    string(name: 'TRIVY_VERSION', defaultValue: '0.71.0',
+    string(name: 'TRIVY_VERSION', defaultValue: '0.75.0',
       description: 'Trivy image tag for the fs scan')
   }
 
