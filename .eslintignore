@@ -7,4 +7,15 @@ public
 uploads
 .env
 .env.local
+.env.docker
+.env.docker.example
 prisma/migrations
+prisma/generated
+.prisma
+coverage
+data
+.DS_Store
+*.log
+docs
+tests/fixtures
+
