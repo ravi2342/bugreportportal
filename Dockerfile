@@ -1,8 +1,11 @@
 FROM node:24-alpine AS deps
 
-# Update npm to patch bundled CLI packages, then patch OS packages
+# Update npm to patch bundled CLI packages, then patch OS packages including OpenSSL
 RUN npm install -g npm@latest && \
-    apk update && apk upgrade --no-cache && rm -rf /var/cache/apk/*
+    apk update && \
+    apk upgrade --no-cache && \
+    apk add --no-cache --upgrade openssl libssl3 libcrypto3 && \
+    rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
@@ -19,9 +22,11 @@ RUN npx prisma generate
 FROM node:24-alpine AS runner
 
 # Update npm to patch bundled CLI packages, then patch OS packages and remove npm
-# (the runtime doesn't need npm because we invoke Prisma directly via its local bin)
+# Explicitly upgrade OpenSSL to patch CVE-2026-14456
 RUN npm install -g npm@latest && \
-	apk update && apk upgrade --no-cache && \
+	apk update && \
+	apk upgrade --no-cache && \
+	apk add --no-cache --upgrade openssl libssl3 libcrypto3 && \
 	rm -rf /usr/local/lib/node_modules/npm \
 		   /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
 		   /var/cache/apk/*

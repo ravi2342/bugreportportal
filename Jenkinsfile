@@ -21,7 +21,7 @@ pipeline {
 
   options {
     timestamps()
-    timeout(time: 30, unit: 'MINUTES')
+    timeout(time: 2, unit: 'HOURS')
     buildDiscarder(logRotator(numToKeepStr: '20'))
     // We do our own checkout into app/ to mirror the layout the shared
     // library expects. Without this, Jenkins would checkout at the
@@ -40,7 +40,7 @@ pipeline {
       description: 'Jenkins credentials ID for the Sonar token')
     choice(name: 'SONAR_EDITION', choices: ['community', 'developer'],
       description: 'SonarQube edition. "community" disables branch/PR args (unsupported).')
-    string(name: 'TRIVY_VERSION', defaultValue: '0.71.0',
+    string(name: 'TRIVY_VERSION', defaultValue: '0.75.0',
       description: 'Trivy image tag for the fs scan')
   }
 
@@ -102,53 +102,79 @@ pipeline {
       when {
         expression { return params.RUN_SONAR && params.SONAR_HOST_URL?.trim() }
       }
+      options {
+        timeout(time: 45, unit: 'MINUTES')
+      }
       steps {
         script {
-          // SonarQube Community Edition supports only a single main-branch
-          // analysis (no sonar.branch.name, no sonar.pullrequest.*). Enable
-          // those args only when SONAR_EDITION is set to "developer" or above.
-          def extra = []
-          def edition = (params.SONAR_EDITION ?: 'community').toLowerCase()
-          if (edition != 'community') {
-            if (env.CHANGE_ID) {
-              extra = [
-                "-Dsonar.pullrequest.key=${env.CHANGE_ID}",
-                "-Dsonar.pullrequest.branch=${env.CHANGE_BRANCH}",
-                "-Dsonar.pullrequest.base=${env.CHANGE_TARGET}"
-              ]
-            } else if (env.BRANCH_NAME) {
-              extra = ["-Dsonar.branch.name=${env.BRANCH_NAME}"]
+          echo "🔍 Running SonarQube quality scan for PR validation..."
+          try {
+            // SonarQube Community Edition supports only a single main-branch
+            // analysis (no sonar.branch.name, no sonar.pullrequest.*). Enable
+            // those args only when SONAR_EDITION is set to "developer" or above.
+            def extra = []
+            def edition = (params.SONAR_EDITION ?: 'community').toLowerCase()
+            if (edition != 'community') {
+              if (env.CHANGE_ID) {
+                extra = [
+                  "-Dsonar.pullrequest.key=${env.CHANGE_ID}",
+                  "-Dsonar.pullrequest.branch=${env.CHANGE_BRANCH}",
+                  "-Dsonar.pullrequest.base=${env.CHANGE_TARGET}"
+                ]
+              } else if (env.BRANCH_NAME) {
+                extra = ["-Dsonar.branch.name=${env.BRANCH_NAME}"]
+              }
             }
-          }
 
-          sonarScan(
-            hostUrl: params.SONAR_HOST_URL,
-            projectKey: params.SONAR_PROJECT_KEY,
-            tokenCredId: params.SONAR_TOKEN_CREDENTIALS_ID,
-            waitForQualityGate: true,
-            extraArgs: extra
-          )
+            sonarScan(
+              hostUrl: params.SONAR_HOST_URL,
+              projectKey: params.SONAR_PROJECT_KEY,
+              tokenCredId: params.SONAR_TOKEN_CREDENTIALS_ID,
+              waitForQualityGate: true,
+              extraArgs: extra
+            )
+            echo "✓ SonarQube quality gate PASSED"
+          } catch (Exception e) {
+            echo "⚠ CRITICAL: SonarQube scan failed or timed out"
+            echo "Error: ${e.message}"
+            echo "Action: Check SonarQube at ${params.SONAR_HOST_URL}/dashboard?id=${params.SONAR_PROJECT_KEY}"
+            error("SonarQube quality gate failed - PR cannot merge without fixing")
+          }
         }
       }
     }
 
     stage('Trivy Security Scan') {
+      options {
+        timeout(time: 15, unit: 'MINUTES')
+      }
       steps {
-        // Inline fs scan because the shared-lib trivyScan only scans
-        // built Docker images; PR builds intentionally do not build
-        // images. Reads package-lock.json for HIGH/CRITICAL CVEs.
-        sh """
-          set -e
-          docker run --rm \\
-            -v \$PWD/app:/src \\
-            aquasec/trivy:${params.TRIVY_VERSION} fs \\
-            --scanners vuln \\
-            --severity HIGH,CRITICAL \\
-            --exit-code 1 \\
-            --no-progress \\
-            --pkg-types library \\
-            /src
-        """
+        script {
+          echo "🔒 Running Trivy security scan on dependencies..."
+          // Inline fs scan because the shared-lib trivyScan only scans
+          // built Docker images; PR builds intentionally do not build
+          // images. Reads package-lock.json for HIGH/CRITICAL CVEs.
+          try {
+            sh """
+              set -e
+              docker run --rm \\
+                -v \$PWD/app:/src \\
+                aquasec/trivy:${params.TRIVY_VERSION} fs \\
+                --scanners vuln \\
+                --severity HIGH,CRITICAL \\
+                --exit-code 1 \\
+                --no-progress \\
+                --pkg-types library \\
+                /src
+            """
+            echo "✓ Trivy security scan PASSED - No HIGH/CRITICAL vulnerabilities found"
+          } catch (Exception e) {
+            echo "❌ CRITICAL: Trivy scan found HIGH/CRITICAL vulnerabilities"
+            echo "Error: ${e.message}"
+            echo "Action: Run 'npm audit fix' in the application to resolve vulnerabilities"
+            error("Security vulnerabilities must be fixed before merging")
+          }
+        }
       }
     }
   }
